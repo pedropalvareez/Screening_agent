@@ -2,6 +2,8 @@
 
 Where the brief is silent or offers a choice, this file rules. Bonus features not listed here are out of scope.
 
+Entries marked (provisional) come from the Phase 1 design and product sessions and may change.
+
 Template:
 
 ```
@@ -17,14 +19,149 @@ Template:
 - Alternative: a JS framework for the panel; Postgres; separate services.
 - Trade-off: fewest moving parts for a demo-sized load; SQLite and a single process cap write concurrency, revisit before multi-instance deployment.
 
-## 002. LLM client
+## 002. LLM client and model (provisional)
 
-- Decision: OpenRouter through its OpenAI-compatible API. Model choice still open, to be recorded here.
-- Alternative: a single provider's SDK.
-- Trade-off: swapping models is a config change, at the cost of an extra hop and a third party in the data path.
+- Decision: OpenRouter through its OpenAI-compatible API. Model: Claude Haiku 5.5 at low effort for every call, confirmed by an eval of about 10 scripted conversations against Gemini 3.8 Flash on per-field extraction accuracy, invalid-JSON rate and p50/p95 latency.
+- Alternative: a single provider's SDK; Gemini 3.8 Flash; Haiku to extract plus Sonnet 5.5 to phrase.
+- Trade-off: swapping models is a config change, at the cost of an extra hop and a third party in the data path. Haiku 5.5 is the cheapest fast option (about $7/week at 1K candidates), so cost does not decide at this scale; quality and latency do. JSON-schema support through OpenRouter is unverified for this model, and Pydantic validation plus one retry covers it either way.
 
-## 003. Bonus: voice agent
+## 003. Bonus: voice agent (provisional)
 
-- Decision: browser voice via ElevenLabs, calling an endpoint on the same FastAPI app so it runs the same screening flow.
-- Alternative: no voice; another voice provider.
-- Trade-off: covers the brief's "Great" tier; adds a paid external dependency and latency to every turn.
+- Decision: push-to-talk in the browser: recorded audio goes to ElevenLabs speech-to-text, the transcript runs through the same turn endpoint, and the reply comes back as ElevenLabs text-to-speech. Built last, first to cut if time runs short.
+- Alternative: ElevenLabs Agents with a custom LLM pointing at our endpoint; no voice; another voice provider.
+- Trade-off: covers the brief's "Great" tier with the same engine and no public tunnel during the demo; not real-time and no barge-in. Adds a paid external dependency and latency to every turn.
+
+## 004. Channel (provisional)
+
+- Decision: a web chat styled as messaging for the demo, built on a channel-agnostic core with one entry point, turn(conversation, message) → reply. WhatsApp is designed as a production adapter, not built. The agent sends the first message.
+- Alternative: real WhatsApp through Twilio or Meta Cloud API; a Telegram bot.
+- Trade-off: no new dependency and a reliable live demo; it is not the channel candidates actually use, so the jump to WhatsApp has to be explained.
+
+## 005. Stage order and derived stage (provisional)
+
+- Decision: GREETING (AI and privacy notice) → LICENSE → ZONE → NAME → AVAILABILITY → SCHEDULE → EXPERIENCE → START_DATE → CONFIRM. Knockout questions come first. One message may fill several fields. The stage is not stored; it is the first unmet requirement in that fixed order.
+- Alternative: the brief's order with the name first; free slot-filling chosen by the LLM.
+- Trade-off: unqualified candidates exit in two turns without giving personal data, and there is no stored stage to fall out of sync; the first two questions feel impersonal.
+
+## 006. Turn pipeline (provisional)
+
+- Decision: an extraction call returns every field present plus intent and language; Pydantic strict checks format; engine.py applies business rules and picks the next stage; code hands the LLM a closed directive to phrase. Closing messages are code templates in ES and EN. On LLM failure: one retry, then a template reply with state unchanged.
+- Alternative: one call returning fields and reply together; extraction plus fixed templates for every message.
+- Trade-off: two calls per turn cost latency and money, in exchange for the LLM never deciding. Templated closings read less naturally but cannot promise anything the business did not approve.
+
+## 007. Service zones (provisional)
+
+- Decision: a fictional list of 12 cities holding the 45 locations; coverage is checked per city. ES: Madrid, Barcelona, Valencia, Sevilla, Málaga, Bilbao, Zaragoza. MX: Ciudad de México, Guadalajara, Monterrey, Puebla, Querétaro. The LLM extracts the city as written; code resolves it with a metro-area alias table and difflib. One re-ask before disqualifying.
+- Alternative: the LLM maps to the enum directly; city plus neighbourhood mapped to one of the 45 locations; postcode to distance from the nearest location.
+- Trade-off: only code decides coverage; the alias table is maintained by hand, and an unlisted suburb can be wrongly rejected, which the re-ask and recruiter review mitigate. City granularity also accepts candidates far from any location; postcode distance is the production fix, and it needs a postcode-to-coordinates table or a geocoder.
+
+## 008. Field rules (provisional)
+
+- Decision: full name has at least two words. Any motor-vehicle licence counts, and "in progress", "expired" or "suspended" count as no. Availability and preferred schedule are one enum value each, and two or more named slots become flexible. Prior delivery experience is one nested object, as in the brief: years as a float from 0 to 50 (0 does not disqualify and is flagged) and platforms as an enum plus other with the raw text, normalized by the LLM and required only when years > 0, a rule validated inside the submodel. Start date is an ISO date in [today, today + 365 days]; the LLM resolves relative dates and CONFIRM shows the result.
+- Alternative: 0 years disqualifies; start-date buckets; free-text platforms.
+- Trade-off: no knockout the client did not ask for. The LLM normalizes only fields that no decision depends on.
+
+## 009. Invalid answers and silence (provisional)
+
+- Decision: first invalid answer → re-ask with an example; second → offer closed options; third → flag the field and move on, and the outcome becomes NEEDS_REVIEW. Ambiguity never disqualifies. Corrections are accepted until the conversation closes. A silent candidate resumes where they left off. ABANDONED is computed on read after 72 h of inactivity. Nudges are designed but not sent: at most two per conversation, at +8 h and +22 h after the candidate's last message, none at night.
+- Alternative: disqualify after N failures; immediate human handoff; scheduler-driven nudges.
+- Trade-off: some candidates reach recruiters incomplete, and no background process is needed.
+
+## 010. Persona and tone (provisional)
+
+- Decision: "Leo, Grupo Sazón's virtual assistant", disclosed as an AI. Informal "tú" in Spain and Mexico. One question per message, at most about 300 characters, country-specific wording once the zone is known, 0–1 emoji and none in rejections. Enforced by evals, not by truncation.
+- Alternative: an unnamed assistant; "usted" in Mexico.
+- Trade-off: warmer and easier to remember; length is a guideline checked offline, not a runtime guarantee.
+
+## 011. Outcomes (provisional)
+
+- Decision: QUALIFIED → "a recruiter will message you here". DISQUALIFIED → a clear reason plus "tell us here if this is a mistake"; anything written after close is flagged for human review. Also NEEDS_REVIEW, WITHDRAWN (including abusive) and ABANDONED.
+- Alternative: "a recruiter will call you"; a generic rejection with no reason.
+- Trade-off: the best candidates stay on the async channel. Stating the reason lets someone learn the passing answer, but every answer is self-declared anyway and the licence is checked at onboarding.
+
+## 012. Recruiter panel (provisional)
+
+- Decision: a work queue (QUALIFIED and NEEDS_REVIEW) with filters by outcome and zone; a detail view with summary, JSON, transcript and the candidate's questions; recruiter_status (pending, contacted, hired, rejected) kept separate from the screening outcome; recruiters can reopen a DISQUALIFIED candidate. Basic auth from .env with fastapi.security.HTTPBasic and secrets.compare_digest.
+- Alternative: a read-only panel; a kanban board; per-user accounts.
+- Trade-off: real tracking for one enum and one endpoint; one shared credential, so there is no per-recruiter audit trail.
+
+## 013. Summary (provisional)
+
+- Decision: the key-data block is rendered by code from validated fields, followed by 2–3 LLM notes labelled as AI-generated. Generated when a conversation reaches a terminal state.
+- Alternative: a template only; an LLM-only summary.
+- Trade-off: one extra call per closed conversation; the summary cannot contradict the fields.
+
+## 014. Privacy (provisional)
+
+- Decision: knockout questions before personal data. Regex redaction of DNI/NIE, CURP, phone, email and card numbers before every LLM call and before storage. OpenRouter set to exclude providers that train on inputs. EU routing and a retention period for disqualified candidates are designed, not enforced in the demo.
+- Alternative: no redaction; enforce EU routing now.
+- Trade-off: regexes miss cases but reduce what reaches a third party; EU routing may require a paid OpenRouter plan.
+
+## 015. Bonus scope (provisional)
+
+- Decision: in scope: multi-language (ES/EN), guardrails, tests and evals, minimal analytics (completion rate, drop-off stage, average duration) and voice (003). Possible but not in scope until decided: interview scheduling, FAQ answers by classification, sent re-engagement nudges.
+- Alternative: many shallow bonus features.
+- Trade-off: the rubric rewards depth; most chosen bonuses fall out of the core design.
+
+## 016. Product direction (provisional)
+
+- Decision: build the triage queue with business rules in code; that is the answer to "why not buy Paradox or Fountain": decisions are tested, auditable and immune to prompt injection. Designed but not built: auto-scheduling of onboarding when volume outgrows 13 recruiters (about 4,000 qualified a week at 10K applications), first-shift confirmation 48 h ahead, and inbound phone voice as another channel adapter. Languages stay ES/EN; each new language is one template set, chosen from candidate data.
+- Alternative: build interview scheduling with fictional slots; an FAQ-first "sell, then screen" agent; real phone voice; ES/EN/PT/FR.
+- Trade-off: everything built uses data the brief provides; the alternatives need client data we do not have, so they stay as designed phases.
+
+## 017. Product metrics (provisional)
+
+- Decision: two layers. Agent metric, owned by the agent and estimated in the demo: recruiter minutes per qualified candidate. Baseline from the brief: 80% of recruiter time goes to unqualified candidates, so each qualified candidate costs about 5 calls of recruiter time today [assumption: individual calls vary, but over time calls with qualified and unqualified candidates average the same length; unanswered attempts come on top]. With the agent, recruiters spend time only on QUALIFIED and NEEDS_REVIEW, so the cost falls toward one call per qualified plus the NEEDS_REVIEW load. Business outcome, influenced but not controlled by the agent: drivers who complete their first shift per week, measured in production through recruiter_status values showed_up and no_show. Supporting input: response rate (applied → started screening). Guardrails: rate of DISQUALIFIED reopened by a recruiter, and NEEDS_REVIEW share with a target below 10% [assumption], broken down by flagged field and by language. Diagnostics as in 015. That async messaging fixes the 60% is presented as a hypothesis, tested by a two-week 50/50 split between calls and chat.
+- Alternative: first shift as the only north star; time from application to the recruiter queue; completion rate as headline; hires per week.
+- Trade-off: the commitment is something the agent controls and the demo shows; whether it moves first shifts is a bet tested in production.
+
+## 018. Talent pool for uncovered zones (provisional)
+
+- Decision: a zone_not_covered closing asks "shall we tell you if we open in your city?". A yes stores consent, an expiry date and the raw city. Reactivation is designed, not sent. Only worth it if Grupo Sazón plans to expand.
+- Alternative: a pool for every rejection; design only.
+- Trade-off: one boolean, one date and one template line keep an already-acquired candidate; it extends retention of personal data, so it needs explicit consent and an expiry.
+
+## 019. Candidate questions (provisional)
+
+- Decision: the agent answers process questions (duration, next steps, data use) from code-approved text. Job questions (pay, vehicle, insurance) get "a recruiter will confirm that" and are logged for the recruiter, until the client provides an FAQ.
+- Alternative: a fictional full FAQ; log everything.
+- Trade-off: the agent never states a company fact the business did not approve; candidates asking about pay wait for a person.
+
+## 020. First message (provisional)
+
+- Decision: one sentence of AI disclosure, "about 2 minutes", a privacy link and a yes/no question, as a code template. Variants for A/B tests are assigned by hash(conversation_id) % 2 and stored in SQLite.
+- Alternative: full privacy notice up front; disclosure in the second message. PostHog for flags and funnels is a possible production dependency, not added.
+- Trade-off: the first message decides the response rate, so it stays short; disclosure is never deferred.
+
+## 021. Bias checks (provisional)
+
+- Decision: AI notes in the summary describe facts (questions asked, hesitations) and never assess the candidate, checked by evals. The NEEDS_REVIEW guardrail is broken down by language.
+- Alternative: hide the zero-experience flag; mention bias only in the presentation.
+- Trade-off: two cheap checks on the least visible bias, weaker Spanish leading to more flagged fields; the zero-experience flag stays and the breakdown shows whether it hurts.
+
+## Open questions
+
+For Orbio:
+- The RAG bonus mentions a provided FAQ: does it exist, and where (019)?
+- Is the demo live or recorded, and does the evaluator run the code locally?
+- Should the docs and presentation be in English or Spanish?
+
+For the client:
+- Which job FAQ answers may the agent give (019)?
+- Expansion plans to new cities (018)?
+- Who provides the vehicle, and are drivers employees or self-employed?
+- Who records the first-shift date and the show-up?
+- Are minimum age or work permit requirements, and so knockouts?
+- How do candidates apply today, and do we get their phone number?
+- Average screening call length, and does the 80% figure include unanswered calls (017)?
+- Is there an ATS to export candidates to?
+- Are recruiters split by country?
+
+To verify:
+- Paradox, Fountain and Workstream feature claims.
+- AI Act transparency article and dates; Ley Rider scope.
+- ElevenLabs Agents telephony.
+- PostHog EU hosting.
+
+Pending:
+- Demo story.
