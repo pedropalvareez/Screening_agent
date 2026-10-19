@@ -44,7 +44,7 @@ The LLM converses, code decides. Each turn the LLM extracts fields, intent and l
 | availability | enum | full_time, part_time, weekends; mixed answer → ask to pick one [assumption] | LLM |
 | preferred_schedule | enum | morning, afternoon, evening, flexible; two or more slots → flexible [assumption] | LLM |
 | prior_delivery_experience.years | float | 0–50; "6 months" = 0.5; 0 does not disqualify, it is flagged | LLM extracts, code validates |
-| prior_delivery_experience.platforms | list[enum] | glovo, uber_eats, just_eat, rappi, didi_food, own_fleet, other (raw text kept); required only if years > 0, checked inside the same submodel | LLM |
+| prior_delivery_experience.platforms | list[enum] | glovo, uber_eats, just_eat, rappi, didi_food, own_fleet, other (raw text kept); required if years > 0, empty if years = 0, checked inside the same submodel | LLM |
 | start_date | date | In [today, today + 365]; past → re-ask; "asap" = today; "in September" = the 1st [assumption] | LLM resolves, code validates |
 
 Service area [assumption, fictional]: the 45 locations sit in 12 cities (Madrid, Barcelona, Valencia, Sevilla, Málaga, Bilbao, Zaragoza; Ciudad de México, Guadalajara, Monterrey, Puebla, Querétaro), and screening checks city coverage. Production would check the distance from the candidate's postcode to the nearest location. The LLM only extracts the city as written; code resolves it deterministically: lowercase, strip accents, an alias table (Getafe → Madrid, CDMX → Ciudad de México), then difflib for typos (Barcelna → Barcelona). CONFIRM shows the city back. Rule of thumb: the LLM normalizes a field only if no decision depends on it.

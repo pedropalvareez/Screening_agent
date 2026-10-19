@@ -38,8 +38,8 @@ class PriorDeliveryExperience(Strict):
 
     @model_validator(mode="after")
     def platforms_match_years(self) -> Self:
-        if self.years > 0 and not self.platforms:
-            raise ValueError("platforms are required when years > 0")
+        if (self.years > 0) != bool(self.platforms):
+            raise ValueError("platforms are required when years > 0, else empty")
         if ("other" in self.platforms) != (self.other_platform is not None):
             raise ValueError("other_platform is required exactly when other is listed")
         return self

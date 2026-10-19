@@ -64,6 +64,10 @@ def test_zero_years_needs_no_platforms() -> None:
             id="platforms missing with years > 0",
         ),
         pytest.param(
+            {"prior_delivery_experience": experience(years=0)},
+            id="platforms listed with 0 years",
+        ),
+        pytest.param(
             {"prior_delivery_experience": experience(platforms=["other"])},
             id="other without raw text",
         ),
