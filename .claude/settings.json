@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "ask": [
+      "Edit(/pyproject.toml)",
+      "Edit(/uv.lock)",
+      "Edit(/tests/test_architecture.py)",
+      "Edit(/tests/test_web_audit.py)",
+      "Edit(/.github/**)",
+      "Edit(/.claude/settings.json)",
+      "Edit(/AGENTS.md)",
+      "Edit(/CLAUDE.md)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat \"${CLAUDE_PROJECT_DIR}/.agents/skills/ponytail/SKILL.md\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR}\" && { uv run --locked --quiet ruff check --quiet && uv run --locked --quiet ruff format --check --quiet; } 1>&2 || exit 2"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'PONYTAIL ACTIVE (full): apply .agents/skills/ponytail/SKILL.md to every code change; run .agents/skills/ponytail-review/SKILL.md on the full task diff before finishing.'"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+[project]
+name = "sazon"
+version = "0.1.0"
+description = "AI screening agent for Grupo Sazón delivery-driver hiring, plus a recruiter panel."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.143.0",
+    "pydantic>=2.14.1",
+    "uvicorn>=0.54.0",
+]
+
+[tool.uv]
+# An app, not a library: nothing to build or publish, so no build backend.
+# Imports resolve from src/ via the per-tool paths below.
+package = false
+# Supply-chain cooldown: ignore releases younger than a week; a hijacked release is usually pulled within days.
+exclude-newer = "7 days"
+
+[tool.ruff]
+target-version = "py312"
+src = ["src", "tests"]
+# Vendored agent skills: third-party content, not our code.
+extend-exclude = [".claude", ".agents"]
+
+[tool.ruff.lint]
+select = [
+    "E",       # pycodestyle errors, incl. E722 bare `except:` that swallows everything
+    "W",       # pycodestyle warnings: trailing whitespace and other generated noise
+    "F",       # pyflakes: unused imports/variables and undefined names left by copy-paste
+    "I",       # isort: one import order, so diffs show real changes only
+    "UP",      # pyupgrade: legacy syntax (Optional, List, old super) from older training data
+    "B",       # bugbear: mutable defaults, loop-variable closures and other likely bugs
+    "SIM",     # simplify: needlessly verbose conditionals and nesting
+    "RUF",     # ruff-specific, incl. RUF100 unused `# noqa` left behind after a fix
+    "BLE001",  # blind `except Exception:` that hides the real failure
+    "T20",     # print/pprint debugging left in place of logging or a test
+    "PGH003",  # blanket `# type: ignore` with no rule named
+    "PGH004",  # blanket `# noqa` with no code named
+    "TID251",  # banned APIs below: casts, Any and unvalidated JSON
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"typing.cast".msg = "Do not force types. Keep the precise type, narrow with isinstance, or validate at the boundary with Pydantic."
+"typing.Any".msg = "Do not erase types. Use the precise type, object, or pydantic.JsonValue for arbitrary JSON."
+"json.loads".msg = "External JSON must be validated: use Model.model_validate_json()."
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+include = ["src", "tests"]
+# Escape hatches must name a rule: only "# pyright: ignore[rule]" works (PGH003 enforces the rule).
+enableTypeIgnoreComments = false
+# An escape hatch that no longer suppresses anything must be deleted.
+reportUnnecessaryTypeIgnoreComment = "error"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+filterwarnings = ["error"]
+# Real LLM/voice calls need keys and money: opt in with `uv run pytest -m live`. CI never does.
+markers = ["live: calls a real external service and needs keys from .env"]
+addopts = ["-m", "not live", "--strict-markers"]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "pyright==1.1.414",
+    "pytest>=9.1.1",
+    "ruff==0.17.0",
+]
