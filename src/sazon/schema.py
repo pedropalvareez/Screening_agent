@@ -62,3 +62,4 @@ class Extraction(ScreeningFields):
 
     intent: Intent
     language: Language
+    confirmed: bool | None = None  # yes/no to the CONFIRM recap
