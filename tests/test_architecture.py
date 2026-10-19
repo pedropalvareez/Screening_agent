@@ -16,6 +16,12 @@ FORBIDDEN_IMPORTS = {
     "api": {"llm"},  # api reaches the LLM only through engine
 }
 
+# Literal aliases in schema.py that label messages, not business values; their
+# values are everyday words ("question", "es") a prompt may use freely.
+LABEL_ALIASES = {"Intent", "Language"}
+# Catch-all enum value with no rule behind it.
+COMMON_WORDS = {"other"}
+
 
 def imports(path: Path) -> set[str]:
     """Dotted names a file imports; `from x import y` yields both x and x.y."""
@@ -45,10 +51,16 @@ def strings(tree: ast.AST) -> list[str]:
     ]
 
 
-def literal_values(path: Path) -> set[str]:
-    """String values inside every Literal[...] annotation in a file."""
+def literal_values(path: Path, skip: set[str]) -> set[str]:
+    """String values inside every Literal[...] in a file, except top-level aliases
+    named in skip."""
+    kept = [
+        stmt
+        for stmt in ast.parse(path.read_text(encoding="utf-8")).body
+        if not (isinstance(stmt, ast.Assign) and ast.unparse(stmt.targets[0]) in skip)
+    ]
     values: set[str] = set()
-    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+    for node in (n for stmt in kept for n in ast.walk(stmt)):
         if isinstance(node, ast.Subscript) and ast.unparse(node.value).endswith(
             "Literal"
         ):
@@ -84,13 +96,16 @@ def test_prompts_hold_no_business_values() -> None:
     if zones.exists():
         banned.update(tomllib.loads(zones.read_text(encoding="utf-8"))["zones"])
     if (PKG / "schema.py").exists():
-        banned.update(literal_values(PKG / "schema.py"))
+        banned.update(literal_values(PKG / "schema.py", LABEL_ALIASES))
+    banned -= COMMON_WORDS
     texts = strings(ast.parse(prompts.read_text(encoding="utf-8")))
     # shortcut: whole-word match, so a value that is also a common word
     # ("flexible") can false-positive; then match on schema identifiers instead
+    # "_" matches a space, hyphen or nothing: "Uber Eats", "part-time", "fulltime"
+    patterns = {v: re.escape(v).replace("_", r"[_\s-]*") for v in banned}
     leaks = sorted(
         v
-        for v in banned
-        if any(re.search(rf"\b{re.escape(v)}\b", t, re.IGNORECASE) for t in texts)
+        for v, p in patterns.items()
+        if any(re.search(rf"\b{p}\b", t, re.IGNORECASE) for t in texts)
     )
     assert not leaks, f"prompts.py hardcodes values, inject from schema/config: {leaks}"

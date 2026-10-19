@@ -57,7 +57,7 @@ Template:
 
 ## 008. Field rules (provisional)
 
-- Decision: full name has at least two words. Any motor-vehicle licence counts, and "in progress", "expired" or "suspended" count as no. Availability and preferred schedule are one enum value each, and two or more named slots become flexible. Prior delivery experience is one nested object, as in the brief: years as a float from 0 to 50 (0 does not disqualify and is flagged) and platforms as an enum plus other with the raw text, normalized by the LLM and required only when years > 0, a rule validated inside the submodel. Start date is an ISO date in [today, today + 365 days]; the LLM resolves relative dates and CONFIRM shows the result.
+- Decision: full name has at least two words. Any motor-vehicle licence counts, and "in progress", "expired" or "suspended" count as no. Availability and preferred schedule are one enum value each, and two or more named slots become flexible. Prior delivery experience is one nested object, as in the brief: years as a float from 0 to 50 (0 does not disqualify and is flagged) and platforms as an enum plus other with the raw text, normalized by the LLM, required when years > 0 and empty when years = 0, a rule validated inside the submodel. Start date is an ISO date in [today, today + 365 days]; the LLM resolves relative dates and CONFIRM shows the result.
 - Alternative: 0 years disqualifies; start-date buckets; free-text platforms.
 - Trade-off: no knockout the client did not ask for. The LLM normalizes only fields that no decision depends on.
 
