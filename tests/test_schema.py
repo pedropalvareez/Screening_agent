@@ -4,7 +4,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from sazon.schema import Extraction
+from sazon.schema import Extraction, parse_extraction
 
 VALID: dict[str, object] = {
     "full_name": "Ana López García",
@@ -88,3 +88,36 @@ def test_zero_years_needs_no_platforms() -> None:
 def test_invalid_extraction_is_rejected(changes: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         parse(**changes)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        pytest.param({}, id="valid output unchanged"),
+        pytest.param({"full_name": "Ana"}, id="one-word name"),
+        pytest.param(
+            {"prior_delivery_experience": experience(platforms=[])},
+            id="invalid experience",
+        ),
+        pytest.param(
+            {"availability": "sometimes", "has_license": "yes"}, id="two bad fields"
+        ),
+    ],
+)
+def test_parse_drops_only_invalid_fields(changes: dict[str, object]) -> None:
+    dropped = dict.fromkeys(changes)
+    assert parse_extraction(json.dumps(VALID | changes)) == parse(**dropped)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param(json.dumps(VALID | {"intent": None}), id="null intent"),
+        pytest.param(json.dumps(VALID | {"salary": 1200}), id="extra key"),
+        pytest.param("not json", id="invalid JSON"),
+        pytest.param("[]", id="not an object"),
+    ],
+)
+def test_parse_raises_outside_screening_fields(raw: str) -> None:
+    with pytest.raises(ValidationError):
+        parse_extraction(raw)

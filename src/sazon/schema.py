@@ -6,7 +6,16 @@ Format only: business rules (start-date window, zone coverage) live in engine.py
 from datetime import date
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    StringConstraints,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
 
 Availability = Literal["full_time", "part_time", "weekends"]
 Schedule = Literal["morning", "afternoon", "evening", "flexible"]
@@ -62,3 +71,20 @@ class Extraction(ScreeningFields):
 
     intent: Intent
     language: Language
+
+
+JSON_OBJECT = TypeAdapter(dict[str, JsonValue])
+
+
+def parse_extraction(raw: str) -> Extraction:
+    """Validate LLM output. A screening field that fails its format is dropped, so
+    the engine counts an invalid answer instead of the whole turn failing. Any
+    other error (bad JSON, intent, language, unknown key) raises."""
+    try:
+        return Extraction.model_validate_json(raw)
+    except ValidationError as error:
+        bad = {e["loc"][0] if e["loc"] else "" for e in error.errors()}
+        if not bad.issubset(ScreeningFields.model_fields):
+            raise
+    kept = {k: v for k, v in JSON_OBJECT.validate_json(raw).items() if k not in bad}
+    return Extraction.model_validate_json(JSON_OBJECT.dump_json(kept))
