@@ -71,6 +71,7 @@ class Extraction(ScreeningFields):
 
     intent: Intent
     language: Language
+    confirmed: bool | None = None  # yes/no to the CONFIRM recap
 
 
 JSON_OBJECT = TypeAdapter(dict[str, JsonValue])

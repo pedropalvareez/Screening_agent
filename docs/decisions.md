@@ -45,7 +45,7 @@ Template:
 
 ## 006. Turn pipeline (provisional)
 
-- Decision: an extraction call returns every field present plus intent and language; Pydantic strict checks format; engine.py applies business rules and picks the next stage; code hands the LLM a closed directive to phrase. Closing messages are code templates in ES and EN. On LLM failure: one retry, then a template reply with state unchanged.
+- Decision: an extraction call returns every field present plus intent, language and, at CONFIRM, a yes/no to the recap; Pydantic strict checks format; engine.py applies business rules and picks the next stage; code hands the LLM a closed directive to phrase. Closing messages are code templates in ES and EN. On LLM failure: one retry, then a template reply with state unchanged.
 - Alternative: one call returning fields and reply together; extraction plus fixed templates for every message.
 - Trade-off: two calls per turn cost latency and money, in exchange for the LLM never deciding. Templated closings read less naturally but cannot promise anything the business did not approve.
 
