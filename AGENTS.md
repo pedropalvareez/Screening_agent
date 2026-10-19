@@ -3,7 +3,7 @@
 Screening agent for Grupo Sazón delivery drivers + recruiter panel. Python, FastAPI, SQLite, OpenRouter, ElevenLabs.
 
 - docs/assignment.md is the client brief. Its core requirements and deliverables are mandatory; never contradict them. It is gitignored: if it is missing, ask for it before continuing.
-- Where the brief is silent or offers a choice (LLM, stack, which bonus features), docs/decisions.md rules. Bonus features not listed there are out of scope. docs/process-design.md (pending) will be the conversation contract. Create no other docs.
+- Where the brief is silent or offers a choice (LLM, stack, which bonus features), docs/decisions.md rules. Bonus features not listed there are out of scope. docs/process-design.md will be the conversation contract. Create no other docs.
 - If a task or decision seems to conflict with the brief, stop and ask. Do not resolve it yourself.
 - The LLM converses, code decides: disqualification, service zones, allowed values and stage transitions live in schema.py and engine.py, never in prompts or in code that handles LLM output.
 - One Pydantic schema is the single source of truth for screening fields and JSON output. Validate at every boundary with models using `ConfigDict(strict=True, extra="forbid")`. Never duplicate a type.
