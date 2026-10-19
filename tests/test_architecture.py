@@ -101,9 +101,11 @@ def test_prompts_hold_no_business_values() -> None:
     texts = strings(ast.parse(prompts.read_text(encoding="utf-8")))
     # shortcut: whole-word match, so a value that is also a common word
     # ("flexible") can false-positive; then match on schema identifiers instead
+    # "_" matches a space, hyphen or nothing: "Uber Eats", "part-time", "fulltime"
+    patterns = {v: re.escape(v).replace("_", r"[_\s-]*") for v in banned}
     leaks = sorted(
         v
-        for v in banned
-        if any(re.search(rf"\b{re.escape(v)}\b", t, re.IGNORECASE) for t in texts)
+        for v, p in patterns.items()
+        if any(re.search(rf"\b{p}\b", t, re.IGNORECASE) for t in texts)
     )
     assert not leaks, f"prompts.py hardcodes values, inject from schema/config: {leaks}"
