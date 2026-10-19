@@ -12,7 +12,7 @@ Screening agent for Grupo Sazón delivery drivers + recruiter panel. Python, Fas
 - Tests check behavior through contracts, not implementation details. Always state whether a result was verified with the fake LLM or a real model.
 - Privacy: only fictional personal data in tests, evals and samples/. Secrets only in .env. Never simplify away requested privacy measures.
 - Report honestly: what you ran, with its real output, vs. what you did not run or are assuming. Never claim something ran when it did not.
-- Branches `amigo/<feature>`; commits `type(scope): outcome`. No merge or deploy without Amigo's approval.
+- Branches `type/short-topic`, commits `type(scope): outcome` (Conventional Commits types: feat, fix, docs, test, refactor, chore). No merge or deploy without the repo owner's approval.
 - Ponytail applies to all code. emilkowalski/skills apply ONLY to src/sazon/web/: no stock photos, no landing-page heroes.
 - Skill locations: `.agents/skills/` holds agent-agnostic skills linked from this file; `.claude/skills/` holds skills Claude Code auto-loads. Do not move or symlink between them: Claude Code reads only `.claude/skills/`, and symlinks break on Windows clones.
 - Code and docs in English.
