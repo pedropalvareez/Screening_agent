@@ -279,6 +279,7 @@ h3 { margin: 24px 0 2px; font-size: 15px; }
 
 .actions label { font-size: 13px; color: var(--muted); }
 #status { color: var(--text); }
+#status-help { margin-top: 6px; }
 #reopen { min-height: 36px; }
 
 pre {
