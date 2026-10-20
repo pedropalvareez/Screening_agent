@@ -48,6 +48,10 @@ def test_extract_sends_schema_from_schema_py(monkeypatch: pytest.MonkeyPatch) ->
     expected = Extraction.model_json_schema()
     # The only regex in the schema; providers reject it as too complex.
     del expected["properties"]["full_name"]["anyOf"][0]["pattern"]
+    # Every key required, so the model writes each one (null when absent).
+    experience = expected["$defs"]["PriorDeliveryExperience"]
+    for model in (expected, experience):
+        model["required"] = [*model["properties"]]
     body = JSON_OBJECT.validate_json(sent[0].content)
     assert body["response_format"] == {
         "type": "json_schema",
