@@ -10,6 +10,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev
 
 COPY src ./src
+COPY config ./config
 
 RUN useradd --create-home app
 USER app
