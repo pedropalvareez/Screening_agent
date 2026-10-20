@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.12"
 
 [options]
-exclude-newer = "2026-10-12T07:40:47.2688575Z"
+exclude-newer = "2026-10-13T07:18:43.2150544Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -367,13 +367,13 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx2" },
     { name = "pydantic" },
     { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx2" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "ruff" },
@@ -382,13 +382,13 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.143.0" },
+    { name = "httpx2", specifier = ">=2.13.1" },
     { name = "pydantic", specifier = ">=2.14.1" },
     { name = "uvicorn", specifier = ">=0.54.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx2", specifier = ">=2.13.1" },
     { name = "pyright", specifier = "==1.1.414" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = "==0.17.0" },

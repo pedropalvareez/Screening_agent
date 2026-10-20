@@ -23,7 +23,8 @@ Template:
 
 - Decision: OpenRouter through its OpenAI-compatible API. Model: Claude Haiku 5.5 at low effort for every call, confirmed by an eval of about 10 scripted conversations against Gemini 3.8 Flash on per-field extraction accuracy, invalid-JSON rate and p50/p95 latency.
 - Alternative: a single provider's SDK; Gemini 3.8 Flash; Haiku to extract plus Sonnet 5.5 to phrase.
-- Trade-off: swapping models is a config change, at the cost of an extra hop and a third party in the data path. Haiku 5.5 is the cheapest fast option (about $7/week at 1K candidates), so cost does not decide at this scale; quality and latency do. JSON-schema support through OpenRouter is unverified for this model, and Pydantic validation plus one retry covers it either way.
+- Trade-off: swapping models is a config change, at the cost of an extra hop and a third party in the data path. Haiku 5.5 is the cheapest fast option (about $7/week at 1K candidates), so cost does not decide at this scale; quality and latency do.
+- Verified (spike, #6): model id `anthropic/claude-haiku-5.5`, called with `reasoning.effort: low`. json_schema is honoured only by the providers that enforce it (Anthropic, Azure, Google Vertex; not Amazon Bedrock or Claude Platform on AWS), so every request sets `provider.require_parameters`. The schema is the one Pydantic generates from schema.py minus the full-name regex: with the regex, OpenRouter answers "Schema is too complex" after about 200 s. parse_extraction still enforces it. One extraction takes 1.7–2.7 s through Anthropic or Azure and 7.6–8.6 s through Vertex; the first call with a new schema adds about 2.5 s. Requests therefore ask for Anthropic, then Azure, and keep the rest as fallbacks: about 1.1 s per extraction on a reused connection.
 
 ## 003. Bonus: voice agent (provisional)
 
