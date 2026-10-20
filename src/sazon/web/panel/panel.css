@@ -226,6 +226,7 @@ main {
 }
 
 .meta { color: var(--muted); font-size: 13px; }
+.meta .keep { white-space: nowrap; }
 
 .flags { display: flex; flex-wrap: wrap; gap: 4px; }
 .flags:empty { display: none; }
@@ -388,33 +389,38 @@ mark {
 .ai .caption,
 .ai #no-notes { color: var(--ai-muted); }
 
-#notes, #questions { margin: 0; padding-left: 20px; }
+#notes, #questions { margin: 0; padding-left: 20px; overflow-wrap: anywhere; }
 #notes li + li { margin-top: 4px; }
 #no-notes, #no-questions { margin: 0; color: var(--muted); }
 
+/* A transcript log: the candidate's answers in full ink, Leo's muted. */
 #transcript {
-  display: grid;
-  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--line);
 }
 
 .line {
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: var(--inset);
-  border: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 92px 84px minmax(0, 1fr);
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
 }
 
-.line.candidate {
-  justify-self: end;
-  background: var(--surface);
+.line time { color: var(--muted); font: 12px/1.6 var(--font-mono); }
+
+.who {
+  color: var(--muted);
+  font: 500 11px/1.8 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.line p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.who { color: var(--muted); font: 12px var(--font-mono); }
+.line.candidate .who { color: var(--brand); }
+.line p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.line.agent p { color: var(--muted); }
 
 @media (hover: hover) and (pointer: fine) {
   button:hover { border-color: var(--muted); }
@@ -434,5 +440,6 @@ mark {
   body[data-view="list"] #detail { display: none; }
   #detail { position: static; max-height: none; padding: 16px; }
   #back { display: inline-block; }
-  .line { max-width: 100%; }
+  .line { grid-template-columns: auto 1fr; gap: 2px 12px; }
+  .line p { grid-column: 1 / -1; }
 }

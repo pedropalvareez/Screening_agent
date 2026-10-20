@@ -111,7 +111,7 @@ function renderViews() {
     const inView = rows.filter((row) => VIEWS[button.dataset.view].includes(row.outcome));
     const late = inView.filter((row) => row.wrote_after_close).length;
     button.setAttribute("aria-pressed", String(button.dataset.view === view));
-    button.querySelector(".count").textContent = inView.length;
+    button.querySelector(".count").textContent = inView.length.toLocaleString("en-GB");
     button.querySelector(".late").textContent = late ? `${late} wrote after close` : "";
   }
   $("outcome-filter").hidden = view !== "queue";
@@ -126,7 +126,10 @@ function rowItem(row) {
   const state = row.outcome === "abandoned" ? `stopped at ${human(row.stopped)}` : `hiring: ${human(row.status)}`;
   const chips = el("span", "flags");
   chips.append(...flags(row).map((text) => el("span", "flag", text)));
-  button.append(top, el("span", "meta", `${place(row)} · ${state} · ${when(row.at)}`), chips);
+  // The place may wrap; the status and the date stay whole.
+  const meta = el("span", "meta", place(row));
+  for (const part of [state, when(row.at)]) meta.append(" · ", el("span", "keep", part));
+  button.append(top, meta, chips);
   button.addEventListener("click", () => open(row.id));
   const item = el("li");
   item.append(button);
@@ -143,7 +146,8 @@ function renderList() {
   );
   $("rows").replaceChildren(...shown.map(rowItem));
   $("empty").hidden = shown.length > 0;
-  $("count").textContent = `${shown.length} candidates`;
+  $("count").textContent = `${shown.length} ${shown.length === 1 ? "candidate" : "candidates"}`;
+  if (!current) $("pick").hidden = shown.length === 0; // nothing to select
   markCurrent();
 }
 
@@ -186,13 +190,17 @@ function renderJson(fields, flagged) {
   }
 }
 
-function transcriptLine(line) {
+const day = (iso) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const clock = (iso) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+// The date only on the first line and when it changes.
+function transcriptLine(line, index, lines) {
   const item = el("li", `line ${line.role}`);
-  const time = el("time", "", when(line.at));
+  const sameDay = index > 0 && day(lines[index - 1].at) === day(line.at);
+  const time = el("time", "", sameDay ? clock(line.at) : `${day(line.at)} ${clock(line.at)}`);
   time.dateTime = line.at;
-  const head = el("span", "who", line.role === "agent" ? "Leo (AI)" : "Candidate");
-  head.append(" · ", time);
-  item.append(head, el("p", "", line.text));
+  const who = el("span", "who", line.role === "agent" ? "Leo (AI)" : "Candidate");
+  item.append(time, who, el("p", "", line.text));
   return item;
 }
 
