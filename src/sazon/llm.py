@@ -31,26 +31,31 @@ class LLM(Protocol):
     def phrase(self, messages: list[Message]) -> str: ...
 
 
-def without_patterns(node: JsonValue) -> JsonValue:
+def for_model(node: JsonValue) -> JsonValue:
+    """The schema without regexes and with every property required. The full-name
+    regex fails with "Schema is too complex" after about 200 s, and with optional
+    keys the model skips fields the message gave; a required key can still be null.
+    parse_extraction enforces the rest."""
     if isinstance(node, dict):
-        return {
-            k: without_patterns(v)
+        out = {
+            k: for_model(v)
             for k, v in node.items()
             if not (k == "pattern" and isinstance(v, str))
         }
+        if isinstance(properties := out.get("properties"), dict):
+            out["required"] = [*properties]
+        return out
     if isinstance(node, list):
-        return [without_patterns(v) for v in node]
+        return [for_model(v) for v in node]
     return node
 
 
-# The full-name regex fails with "Schema is too complex" after about 200 s;
-# parse_extraction still enforces it.
 EXTRACTION_FORMAT: JsonValue = {
     "type": "json_schema",
     "json_schema": {
         "name": "extraction",
         "strict": True,
-        "schema": without_patterns(Extraction.model_json_schema()),
+        "schema": for_model(Extraction.model_json_schema()),
     },
 }
 

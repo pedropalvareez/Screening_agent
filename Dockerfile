@@ -12,7 +12,9 @@ RUN uv sync --locked --no-dev
 COPY src ./src
 COPY config ./config
 
-RUN useradd --create-home app
+# /app stays root-owned: the app user writes only the SQLite file in /data.
+RUN useradd --create-home app && mkdir /data && chown app /data
+ENV DB_PATH=/data/sazon.db
 USER app
 
 EXPOSE 8000

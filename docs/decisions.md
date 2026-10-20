@@ -25,6 +25,7 @@ Template:
 - Alternative: a single provider's SDK; Gemini 3.8 Flash; Haiku to extract plus Sonnet 5.5 to phrase.
 - Trade-off: swapping models is a config change, at the cost of an extra hop and a third party in the data path. Haiku 5.5 is the cheapest fast option (about $7/week at 1K candidates), so cost does not decide at this scale; quality and latency do.
 - Verified (spike, #6): model id `anthropic/claude-haiku-5.5`, called with `reasoning.effort: low`. json_schema is honoured only by the providers that enforce it (Anthropic, Azure, Google Vertex; not Amazon Bedrock or Claude Platform on AWS), so every request sets `provider.require_parameters`. The schema is the one Pydantic generates from schema.py minus the full-name regex: with the regex, OpenRouter answers "Schema is too complex" after about 200 s. parse_extraction still enforces it. One extraction takes 1.7–2.7 s through Anthropic or Azure and 7.6–8.6 s through Vertex; the first call with a new schema adds about 2.5 s. Requests therefore ask for Anthropic, then Azure, and keep the rest as fallbacks: about 1.1 s per extraction on a reused connection.
+- Verified (#7): with only intent and language required, the model skipped keys the message gave ("el lunes que viene" 0/6, "media jornada" 1/3). The schema sent now requires every property, and a missing field is null: 15/15 on the same cases. A turn took 1.9–4.8 s with its two calls, and the recap turn 7.5–9.2 s.
 
 ## 003. Bonus: voice agent (provisional)
 
@@ -46,7 +47,7 @@ Template:
 
 ## 006. Turn pipeline (provisional)
 
-- Decision: an extraction call returns every field present plus intent, language and, at CONFIRM, a yes/no to the recap; Pydantic strict checks format; engine.py applies business rules and picks the next stage; code hands the LLM a closed directive to phrase. Closing messages are code templates in ES and EN. On LLM failure: one retry, then a template reply with state unchanged.
+- Decision: an extraction call returns every field present plus intent, language, the topic of any question and a yes/no to a confirmation (the CONFIRM recap or the 018 opt-in); Pydantic strict checks format; engine.py applies business rules and picks the next stage; code hands the LLM a closed directive to phrase. Closing messages, approved answers and the abuse warning are code templates in ES and EN, sent word for word. On LLM failure: one retry, then a template reply with state unchanged. Each call sees only what it needs: extraction sees the pending question, the agent's last message and the new message (with the full history it could re-extract stale values and undo a correction); phrasing sees the directive and no candidate text; the summary notes see the transcript. Storage keeps the full history.
 - Alternative: one call returning fields and reply together; extraction plus fixed templates for every message.
 - Trade-off: two calls per turn cost latency and money, in exchange for the LLM never deciding. Templated closings read less naturally but cannot promise anything the business did not approve.
 
@@ -58,7 +59,7 @@ Template:
 
 ## 008. Field rules (provisional)
 
-- Decision: full name has at least two words. Any motor-vehicle licence counts, and "in progress", "expired" or "suspended" count as no. Availability and preferred schedule are one enum value each, and two or more named slots become flexible. Prior delivery experience is one nested object, as in the brief: years as a float from 0 to 50 (0 does not disqualify and is flagged) and platforms as an enum plus other with the raw text, normalized by the LLM, required when years > 0 and empty when years = 0, a rule validated inside the submodel. Start date is an ISO date in [today, today + 365 days]; the LLM resolves relative dates and CONFIRM shows the result.
+- Decision: full name has at least two words. Any motor-vehicle licence counts, and "in progress", "expired" or "suspended" count as no. Availability and preferred schedule are one enum value each, and two or more named slots become flexible. Prior delivery experience is one nested object, as in the brief: years as a float from 0 to 50 (0 does not disqualify and is flagged) and platforms as an enum plus other with the raw text, normalized by the LLM, required when years > 0 and empty when years = 0, a rule validated inside the submodel. Start date is an ISO date in [today, today + 365 days]; the LLM resolves relative dates and CONFIRM shows the result. Today is the candidate's date: Europe/Madrid or America/Mexico_City from the resolved zone, Spain until the zone is known.
 - Alternative: 0 years disqualifies; start-date buckets; free-text platforms.
 - Trade-off: no knockout the client did not ask for. The LLM normalizes only fields that no decision depends on.
 
@@ -118,13 +119,13 @@ Template:
 
 ## 018. Talent pool for uncovered zones (provisional)
 
-- Decision: a zone_not_covered closing asks "shall we tell you if we open in your city?". A yes stores consent, an expiry date and the raw city. Reactivation is designed, not sent. Only worth it if Grupo Sazón plans to expand.
+- Decision: a zone_not_covered closing asks "shall we tell you if we open in your city?". A yes stores consent, an expiry date 12 months out and the raw city. A no stores nothing; an unclear reply is flagged like any message after close. Reactivation is designed, not sent. Only worth it if Grupo Sazón plans to expand.
 - Alternative: a pool for every rejection; design only.
 - Trade-off: one boolean, one date and one template line keep an already-acquired candidate; it extends retention of personal data, so it needs explicit consent and an expiry.
 
 ## 019. Candidate questions (provisional)
 
-- Decision: the agent answers process questions (duration, next steps, data use) from code-approved text. Job questions (pay, vehicle, insurance) get "a recruiter will confirm that" and are logged for the recruiter, until the client provides an FAQ.
+- Decision: the agent answers process questions (duration, next steps, data use) from code-approved text. Job questions (pay, vehicle, insurance) get "a recruiter will confirm that" and are logged for the recruiter, until the client provides an FAQ. The extraction tags each question with a topic (duration, next_steps, data_use, other) and code picks the text; any other topic goes to a recruiter. This is the narrow case of 015's "FAQ answers by classification": three approved process answers, no job facts.
 - Alternative: a fictional full FAQ; log everything.
 - Trade-off: the agent never states a company fact the business did not approve; candidates asking about pay wait for a person.
 

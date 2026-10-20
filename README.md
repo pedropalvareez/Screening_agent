@@ -9,8 +9,10 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.12.
 ```sh
 cp .env.example .env        # fill in the API keys
 uv sync
-uv run uvicorn sazon.api:app --app-dir src --reload
+uv run --env-file .env uvicorn sazon.api:app --app-dir src --reload
 ```
+
+Conversations are stored in SQLite at `DB_PATH` (default `sazon.db` in the working directory).
 
 Checks (the same ones CI runs):
 
@@ -22,8 +24,10 @@ Docker:
 
 ```sh
 docker build -t sazon .
-docker run --rm -p 8000:8000 --env-file .env sazon
+docker run --rm -p 8000:8000 --env-file .env -v sazon-data:/data sazon
 ```
+
+The volume keeps the database between runs.
 
 ## Architecture
 
