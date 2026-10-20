@@ -97,6 +97,7 @@ def say(text: tuple[str, str], language: Language) -> str:
 
 
 NOT_GIVEN = "not given"
+NOT_COVERED = "not covered"
 
 
 def key_data(fields: ScreeningFields) -> str:
@@ -105,7 +106,7 @@ def key_data(fields: ScreeningFields) -> str:
     zone = NOT_GIVEN
     if fields.zone is not None:
         city = resolve_zone(fields.zone)
-        covered = f"{city} ({ZONES[city].country})" if city else "not covered"
+        covered = f"{city} ({ZONES[city].country})" if city else NOT_COVERED
         zone = f"{fields.zone} → {covered}"
     experience = NOT_GIVEN
     if (e := fields.prior_delivery_experience) is not None:

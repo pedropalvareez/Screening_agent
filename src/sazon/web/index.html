@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <!-- The privacy link leaves the site; send it no referrer. -->
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17171a">
+  <title>Grupo Sazón · Leo</title>
+  <link rel="stylesheet" href="chat.css">
+  <script src="chat.js" defer></script>
+</head>
+<body>
+  <header>
+    <span class="avatar" aria-hidden="true">L</span>
+    <div>
+      <h1 id="title">Leo · Grupo Sazón</h1>
+      <p id="subtitle">Asistente virtual (IA)</p>
+    </div>
+  </header>
+  <main id="log" role="log" aria-live="polite" aria-labelledby="title"></main>
+  <footer>
+    <div id="options"></div>
+    <form id="composer">
+      <label for="message" class="visually-hidden" id="message-label">Mensaje</label>
+      <textarea id="message" rows="1" maxlength="1000" enterkeyhint="send" placeholder="Escribe un mensaje" required></textarea>
+      <button type="submit" id="send" aria-label="Enviar">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor"/></svg>
+      </button>
+    </form>
+  </footer>
+</body>
+</html>

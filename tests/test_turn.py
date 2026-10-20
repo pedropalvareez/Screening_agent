@@ -26,7 +26,7 @@ from sazon.templates import (
     WARNING,
     say,
 )
-from sazon.turn import Agent, Reply, redact, start, turn
+from sazon.turn import CITIES, Agent, Reply, redact, start, turn
 
 NOW = datetime(2026, 10, 19, 12, tzinfo=UTC)
 
@@ -125,6 +125,16 @@ def test_uncovered_zone_offers_the_cities_then_closes_with_the_pool_question(
     by_city = {city: country for country, cities in options.items() for city in cities}
     assert by_city == {city: zone.country for city, zone in ZONES.items()}
     assert replies[3].text == say(CLOSINGS["disqualified", "zone_not_covered"], "es")
+
+
+def test_uncovered_zone_waits_for_its_re_ask(agent: Agent, fake: FakeLLM) -> None:
+    early: Step = ("Hola, vivo en Toledo", said(zone="Toledo"))
+    conversation_id, _ = chat(agent, fake, early)
+    directive = fake.calls[-1][-1]["content"]
+    assert "Toledo" not in directive  # not acknowledged as if it were rejected
+    _, [reply] = chat(agent, fake, STEPS[1], conversation_id=conversation_id)
+    assert reply.options == CITIES
+    assert "Toledo is not in the service area" in fake.calls[-1][-1]["content"]
 
 
 def test_second_invalid_zone_answer_offers_the_cities(
@@ -244,6 +254,7 @@ def test_switch_to_english_mid_conversation(agent: Agent, fake: FakeLLM) -> None
         ("Yes, all good", said(language="en", confirmed=True)),
     ]
     conversation_id, replies = chat(agent, fake, *STEPS[:3], *english)
+    assert [reply.language for reply in replies[2:4]] == ["es", "en"]
     assert replies[-1].text == say(CLOSINGS["qualified", None], "en")
     assert stored(agent, conversation_id).language == "en"
 
@@ -286,6 +297,15 @@ def test_failed_extraction_asks_again_and_keeps_the_state(
     # Only the error type is logged: the error quotes the candidate (decision 014).
     assert type(error).__name__ in caplog.text
     assert "Ana" not in caplog.text
+
+
+def test_failed_turn_during_the_zone_re_ask_keeps_the_cities(
+    agent: Agent, fake: FakeLLM
+) -> None:
+    conversation_id, _ = chat(agent, fake, *STEPS[:2], TOLEDO)
+    failing: Step = ("Vivo en Tol", httpx2.ConnectError("down"))
+    _, [reply] = chat(agent, fake, failing, conversation_id=conversation_id)
+    assert (reply.text, reply.options) == (say(SAY_AGAIN, "es"), CITIES)
 
 
 def test_failed_phrasing_asks_again_and_keeps_the_state(
