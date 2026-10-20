@@ -1,51 +1,66 @@
+/* Orbio's product palette: cream, white cards, forest ink, lime accents. */
 :root {
-  --bg: #f4f4f5;
+  --bg: #f2f8ea;
   --surface: #ffffff;
-  --text: #18181b;
-  --muted: #5f5f68;
-  --line: #e4e4e7;
-  --brand: #c2410c;
-  --error: #b91c1c;
-  --ai-bg: #f5f3ff;
-  --ai-line: #ddd6fe;
-  --ai-text: #5b21b6;
-  --warn-bg: #fef3c7;
-  --warn-text: #78350f;
-  --info-bg: #eff6ff;
-  --info-text: #1e3a8a;
+  --inset: #f9fcf4;
+  --text: #1b2317;
+  --muted: #626d51;
+  --line: #1b23171f;
+  --brand: #2c7a1c;
+  --strong: #1e2418; /* filled buttons, active tab */
+  --on-strong: #f2f8ea;
+  --dot: #2c7a1c59;
+  --error: #b42318;
+  --ai-bg: #1e2418;
+  --ai-text: #f2f8ea;
+  --ai-muted: #b9c3a8;
+  --ai-accent: #a9f36b;
+  --ai-line: transparent;
+  --warn-bg: #fdf3d1;
+  --warn-text: #6b4a07;
+  --info-bg: #e7f2dc;
+  --info-text: #1c4a0e;
   --mark: #fde68a;
-  --good-bg: #dcfce7;
-  --good-text: #166534;
-  --bad-bg: #fee2e2;
-  --bad-text: #991b1b;
-  --neutral-bg: #e4e4e7;
-  --neutral-text: #3f3f46;
+  --good-bg: #e2f5d3;
+  --good-text: #1c4a0e;
+  --bad-bg: #fbe4e1;
+  --bad-text: #8a1f14;
+  --neutral-bg: #ebf0e4;
+  --neutral-text: #3d4a31;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f0f11;
-    --surface: #17171a;
-    --text: #f4f4f5;
-    --muted: #a1a1aa;
-    --line: #2a2a2f;
-    --error: #f87171;
-    --ai-bg: #1e1b2e;
-    --ai-line: #3b3363;
-    --ai-text: #c4b5fd;
-    --warn-bg: #3a2a0a;
+    --bg: #141a0f;
+    --surface: #1e2418;
+    --inset: #1a2014;
+    --text: #f2f8ea;
+    --muted: #a3ad93;
+    --line: #f2f8ea1f;
+    --brand: #9deb62;
+    --strong: #a9f36b;
+    --on-strong: #141a0f;
+    --dot: #a9f36b40;
+    --error: #ffa3a3;
+    --ai-bg: #0e1410;
+    --ai-muted: #a3ad93;
+    --ai-line: #a9f36b2e;
+    --warn-bg: #3a2f0c;
     --warn-text: #fde68a;
-    --info-bg: #142036;
-    --info-text: #bfdbfe;
+    --info-bg: #23331a;
+    --info-text: #d4f0bd;
     --mark: #6b4f0a;
-    --good-bg: #14361f;
-    --good-text: #bbf7d0;
-    --bad-bg: #3f1515;
+    --good-bg: #23401a;
+    --good-text: #c5ed4a;
+    --bad-bg: #3f1a15;
     --bad-text: #fecaca;
-    --neutral-bg: #2e2e33;
-    --neutral-text: #e4e4e7;
+    --neutral-bg: #2e3822;
+    --neutral-text: #e3e8da;
   }
 }
 
@@ -55,7 +70,8 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 15px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
 }
 
 [hidden] { display: none !important; }
@@ -73,12 +89,12 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
-  background: var(--surface);
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 14px;
   border-bottom: 1px solid var(--line);
 }
 
-h1 { margin: 0; font-size: 17px; }
+h1, h2 { font-family: var(--font-display); letter-spacing: -0.01em; }
+h1 { margin: 0; font-size: 18px; }
 header p { margin: 0; color: var(--muted); font-size: 13px; }
 
 button, select {
@@ -91,7 +107,8 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  padding: 6px 12px;
+  padding: 7px 14px;
+  font-weight: 500;
   transition: transform 160ms var(--ease-out);
 }
 
@@ -137,15 +154,20 @@ select {
 
 #views button {
   border-color: transparent;
+  background: transparent;
   white-space: nowrap;
 }
 
 #views button[aria-pressed="true"] {
-  background: var(--text);
-  color: var(--surface);
+  background: var(--strong);
+  color: var(--on-strong);
 }
 
-.count { font-variant-numeric: tabular-nums; opacity: 0.7; }
+.count {
+  font: 12px var(--font-mono);
+  opacity: 0.7;
+}
+
 .late:not(:empty) {
   margin-left: 6px;
   padding: 1px 6px;
@@ -180,9 +202,10 @@ main {
   display: grid;
   gap: 4px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 10px;
   text-align: left;
+  font-weight: 400;
 }
 
 .row[aria-current="true"] {
@@ -208,7 +231,7 @@ main {
 .flags:empty { display: none; }
 
 .flag {
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 999px;
   background: var(--warn-bg);
   color: var(--warn-text);
@@ -217,7 +240,7 @@ main {
 
 .badge {
   flex: none;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
@@ -232,15 +255,49 @@ main {
 
 #empty { color: var(--muted); }
 
+#pick,
 #detail {
   position: sticky;
   top: 16px;
   max-height: calc(100dvh - 32px);
-  overflow: auto;
-  padding: 16px 20px 24px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
+}
+
+/* The empty pane: a static dot grid, faded toward the edges. */
+#pick {
+  display: grid;
+  place-items: center;
+  height: calc(100dvh - 180px);
+  min-height: 280px;
+  padding: 24px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+#pick::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle, var(--dot) 1.4px, transparent 1.8px) 0 0 / 18px 18px;
+  mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+}
+
+#pick p {
+  max-width: 30ch;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+}
+
+#detail {
+  overflow: auto;
+  padding: 18px 22px 26px;
 }
 
 #back { display: none; margin-bottom: 12px; }
@@ -252,9 +309,16 @@ main {
   gap: 8px 12px;
 }
 
-h2 { margin: 0; font-size: 20px; overflow-wrap: anywhere; }
+h2 { margin: 0; font-size: 22px; overflow-wrap: anywhere; }
 h2:focus { outline: none; }
-h3 { margin: 24px 0 2px; font-size: 15px; }
+
+/* Section labels in the style of Orbio's mono eyebrows. */
+h3 {
+  margin: 28px 0 2px;
+  font: 500 12px/1.4 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
 #detail-facts { margin: 4px 0 0; color: var(--muted); }
 
@@ -262,7 +326,7 @@ h3 { margin: 24px 0 2px; font-size: 15px; }
 
 .notice {
   margin: 8px 0 0;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 8px;
 }
 
@@ -274,7 +338,7 @@ h3 { margin: 24px 0 2px; font-size: 15px; }
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .actions label { font-size: 13px; color: var(--muted); }
@@ -284,15 +348,16 @@ h3 { margin: 24px 0 2px; font-size: 15px; }
 
 pre {
   margin: 0;
-  padding: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--bg);
+  background: var(--inset);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .summary { font: inherit; }
-.json { font: 13px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.json { font: 13px/1.6 var(--font-mono); }
 
 mark {
   background: var(--mark);
@@ -300,27 +365,31 @@ mark {
   border-radius: 3px;
 }
 
+/* AI notes on a dark card, apart from everything code rendered. */
 .ai {
-  margin-top: 24px;
-  padding: 2px 16px 12px;
+  margin-top: 28px;
+  padding: 4px 18px 16px;
   border: 1px solid var(--ai-line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--ai-bg);
+  color: var(--ai-text);
 }
 
-.ai h3 { color: var(--ai-text); margin-top: 12px; }
+.ai h3 { margin-top: 14px; color: var(--ai-accent); }
 .ai h3::before {
   content: "AI" / ""; /* the heading already says it to screen readers */
   margin-right: 8px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: var(--ai-text);
+  background: var(--ai-accent);
   color: var(--ai-bg);
-  font-size: 11px;
-  vertical-align: 2px;
 }
 
+.ai .caption,
+.ai #no-notes { color: var(--ai-muted); }
+
 #notes, #questions { margin: 0; padding-left: 20px; }
+#notes li + li { margin-top: 4px; }
 #no-notes, #no-questions { margin: 0; color: var(--muted); }
 
 #transcript {
@@ -335,17 +404,17 @@ mark {
   max-width: 85%;
   padding: 8px 12px;
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--inset);
+  border: 1px solid var(--line);
 }
 
 .line.candidate {
   justify-self: end;
-  border: 1px solid var(--line);
   background: var(--surface);
 }
 
 .line p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.who { color: var(--muted); font-size: 12px; }
+.who { color: var(--muted); font: 12px var(--font-mono); }
 
 @media (hover: hover) and (pointer: fine) {
   button:hover { border-color: var(--muted); }
@@ -360,7 +429,8 @@ mark {
 @media (max-width: 759px) {
   main { grid-template-columns: minmax(0, 1fr); }
   body[data-view="detail"] #list,
-  body[data-view="detail"] .toolbar { display: none; }
+  body[data-view="detail"] .toolbar,
+  #pick { display: none; }
   body[data-view="list"] #detail { display: none; }
   #detail { position: static; max-height: none; padding: 16px; }
   #back { display: inline-block; }

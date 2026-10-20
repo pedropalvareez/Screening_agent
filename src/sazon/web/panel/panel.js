@@ -201,6 +201,7 @@ function show(detail, focus) {
   const candidate = detail.candidate;
   const closed = candidate.outcome === "abandoned" ? "last message" : "closed";
   $("detail").hidden = false;
+  $("pick").hidden = true;
   document.body.dataset.view = "detail";
   $("detail-name").textContent = displayName(candidate);
   $("detail-badge").replaceChildren(badge(candidate));
