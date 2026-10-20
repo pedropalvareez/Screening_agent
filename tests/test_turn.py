@@ -127,6 +127,16 @@ def test_uncovered_zone_offers_the_cities_then_closes_with_the_pool_question(
     assert replies[3].text == say(CLOSINGS["disqualified", "zone_not_covered"], "es")
 
 
+def test_uncovered_zone_waits_for_its_re_ask(agent: Agent, fake: FakeLLM) -> None:
+    early: Step = ("Hola, vivo en Toledo", said(zone="Toledo"))
+    conversation_id, _ = chat(agent, fake, early)
+    directive = fake.calls[-1][-1]["content"]
+    assert "Toledo" not in directive  # not acknowledged as if it were rejected
+    _, [reply] = chat(agent, fake, STEPS[1], conversation_id=conversation_id)
+    assert reply.options == CITIES
+    assert "Toledo is not in the service area" in fake.calls[-1][-1]["content"]
+
+
 def test_second_invalid_zone_answer_offers_the_cities(
     agent: Agent, fake: FakeLLM
 ) -> None:

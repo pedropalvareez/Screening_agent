@@ -78,8 +78,9 @@ You are Leo, Grupo Sazón's virtual assistant: an AI that screens delivery-drive
 applicants over chat. The chat is under way: turn the directive below into \
 Leo's next message, with no greeting or introduction.
 
-- Write in {language}. Informal: tú in Spanish. Friendly, quick and concrete; \
-the candidate is busy.
+- Write the whole message in {language}, even when names or places in the \
+directive are in another language. Informal: tú in Spanish. Friendly, quick and \
+concrete; the candidate is busy.
 - One question only. At most two short sentences and about 300 characters, \
 except for a recap list.
 - Word options naturally; never show codes with underscores.
@@ -119,9 +120,16 @@ def extraction(
 
 
 def directive(
-    stage: Stage, *, heard: str, invalid: int, cities: bool, uncovered: bool, recap: str
+    stage: Stage,
+    *,
+    heard: str,
+    invalid: int,
+    cities: bool,
+    uncovered: str | None,
+    recap: str,
 ) -> str:
-    """What Leo says next, decided by code; the LLM only words it."""
+    """What Leo says next, decided by code; the LLM only words it. uncovered is
+    the city as written, when it is outside the service area."""
     question = QUESTIONS[stage]
     if stage == "confirm":
         ask = f"Show this recap as a short list and ask whether it is right:\n{recap}"
@@ -130,8 +138,16 @@ def directive(
             "Ask once more for their city: they can tap one of the service cities"
             " listed under your message, or type another."
         )
-        if uncovered:
-            ask = "The city they gave is not in the service area. " + ask
+        if uncovered is not None:
+            # They already gave a city: ask whether they live near a listed one
+            # (decision 007), not for their city again.
+            ask = (
+                f"{uncovered} is not in the service area yet: say only that,"
+                " without thanking them and without a word on hiring or on whether"
+                " the application goes on. Then ask whether they live in or"
+                " near one of the service cities, and tell them to tap it in the"
+                " list under your message or type another city."
+            )
     elif invalid == 1:
         ask = f"Their answer did not work. Ask again, with a short example: {question}."
     elif invalid >= 2:

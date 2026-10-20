@@ -159,7 +159,7 @@ def ask(llm: LLM, before: Screening, after: Screening, extraction: Extraction) -
     code-approved answer to anything the candidate asked."""
     stage = engine.stage(after)
     invalid = after.invalid_answers.get(stage, 0)
-    uncovered = stage == "zone" and after.uncovered_zones > 0
+    uncovered = after.fields.zone if stage == "zone" and after.uncovered_zones else None
     directive = prompts.directive(
         stage,
         heard=heard(before.fields, after.fields),
@@ -241,12 +241,15 @@ def failed(c: Conversation, error: Exception) -> str:
 
 def heard(before: ScreeningFields, after: ScreeningFields) -> str:
     """The key-data lines this message set or changed, for the LLM to acknowledge:
-    the zone shows its service city, so the LLM has nothing to double-check."""
+    the zone shows its service city, so the LLM has nothing to double-check. An
+    uncovered zone is left to the zone re-ask: acknowledged, it reads as a
+    rejection before the next question."""
     old = templates.key_data(before).splitlines()
+    skip = (templates.NOT_GIVEN, templates.NOT_COVERED)
     return "; ".join(
         line
         for line in templates.key_data(after).splitlines()
-        if line not in old and not line.endswith(templates.NOT_GIVEN)
+        if line not in old and not line.endswith(skip)
     )
 
 
