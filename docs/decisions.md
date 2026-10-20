@@ -37,7 +37,7 @@ Template:
 
 - Decision: a web chat styled as messaging for the demo, built on a channel-agnostic core with one entry point, turn(conversation, message) → reply. WhatsApp is designed as a production adapter, not built. The agent sends the first message.
 - Alternative: real WhatsApp through Twilio or Meta Cloud API; a Telegram bot.
-- Trade-off: no new dependency and a reliable live demo; it is not the channel candidates actually use, so the jump to WhatsApp has to be explained.
+- Trade-off: no new dependency and a reliable live demo; it is not the channel candidates actually use, so the jump to WhatsApp has to be explained. The QUALIFIED closing says a recruiter will message the candidate in the chat, but the demo panel cannot write into it: in production the recruiter replies through WhatsApp, which is not built.
 
 ## 005. Stage order and derived stage (provisional)
 
