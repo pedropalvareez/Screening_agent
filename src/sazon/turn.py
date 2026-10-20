@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from sazon import engine, prompts, storage, templates
 from sazon.engine import ZONES, Outcome, Reason, Screening, resolve_zone
 from sazon.llm import FAILURES, LLM, OpenRouter
-from sazon.schema import Extraction, ScreeningFields, Strict
+from sazon.schema import Extraction, Language, ScreeningFields, Strict
 from sazon.storage import Closing, Conversation, Line, PoolConsent
 from sazon.templates import say
 
@@ -49,7 +49,8 @@ LOCKS = [threading.Lock() for _ in range(64)]
 
 class Reply(Strict):
     text: str
-    options: dict[str, list[str]] | None = None  # CITIES, when the zone is re-asked
+    options: dict[str, list[str]] | None  # CITIES, while the zone is re-asked
+    language: Language  # the conversation's, for the chat's own labels
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,7 @@ def start(agent: Agent, now: datetime) -> tuple[str, Reply]:
         transcript=[Line(at=now, role="agent", text=templates.GREETING)],
     )
     storage.save(agent.db, conversation)
-    return conversation.id, Reply(text=templates.GREETING)
+    return conversation.id, latest_reply(conversation)
 
 
 def turn(agent: Agent, conversation_id: str, message: str, now: datetime) -> Reply:
@@ -101,13 +102,28 @@ def turn(agent: Agent, conversation_id: str, message: str, now: datetime) -> Rep
         if conversation is None:
             raise UnknownConversation(conversation_id)
         conversation.transcript.append(Line(at=now, role="candidate", text=text))
-        reply = respond(agent.llm, conversation, text, now)
-        conversation.transcript.append(Line(at=now, role="agent", text=reply.text))
+        said = respond(agent.llm, conversation, text, now)
+        conversation.transcript.append(Line(at=now, role="agent", text=said))
         storage.save(agent.db, conversation)
-    return reply
+    return latest_reply(conversation)
 
 
-def respond(llm: LLM, c: Conversation, text: str, now: datetime) -> Reply:
+def latest_reply(c: Conversation) -> Reply:
+    """The agent's last message as the chat shows it. Options come from the state,
+    so a reply that changes nothing (a failed LLM call) and a reload keep them."""
+    cities = c.closing is None and offers_cities(c.screening)
+    return Reply(
+        text=last_said(c), options=CITIES if cities else None, language=c.language
+    )
+
+
+def offers_cities(state: Screening) -> bool:
+    """The zone re-ask shows the service cities as tap options (decision 007)."""
+    invalid = state.invalid_answers.get("zone", 0)
+    return engine.stage(state) == "zone" and (state.uncovered_zones > 0 or invalid >= 2)
+
+
+def respond(llm: LLM, c: Conversation, text: str, now: datetime) -> str:
     """Changes c only when the LLM calls succeed: a failure leaves the state as
     it was (decision 006)."""
     if c.closing is not None:
@@ -121,7 +137,7 @@ def respond(llm: LLM, c: Conversation, text: str, now: datetime) -> Reply:
     except FAILURES as error:
         return failed(c, error)
     if extraction.language == "other":
-        return Reply(text=templates.OTHER_LANGUAGE)
+        return templates.OTHER_LANGUAGE
     state = engine.apply(c.screening, extraction, now, today)
     result = engine.outcome(state, now)
     if result is None:
@@ -131,25 +147,24 @@ def respond(llm: LLM, c: Conversation, text: str, now: datetime) -> Reply:
             return failed(c, error)
     else:
         c.closing = close(llm, c, state, result, now)
-        reply = Reply(text=say(templates.CLOSINGS[result], extraction.language))
+        reply = say(templates.CLOSINGS[result], extraction.language)
     c.screening, c.language = state, extraction.language
     if extraction.question == "other":
         c.questions.append(text)
     return reply
 
 
-def ask(llm: LLM, before: Screening, after: Screening, extraction: Extraction) -> Reply:
+def ask(llm: LLM, before: Screening, after: Screening, extraction: Extraction) -> str:
     """The next question, worded by the LLM from a closed directive, after the
     code-approved answer to anything the candidate asked."""
     stage = engine.stage(after)
     invalid = after.invalid_answers.get(stage, 0)
     uncovered = stage == "zone" and after.uncovered_zones > 0
-    cities = uncovered or (stage == "zone" and invalid >= 2)
     directive = prompts.directive(
         stage,
         heard=heard(before.fields, after.fields),
         invalid=invalid,
-        cities=cities,
+        cities=offers_cities(after),
         uncovered=uncovered,
         recap=templates.key_data(after.fields),
     )
@@ -160,8 +175,7 @@ def ask(llm: LLM, before: Screening, after: Screening, extraction: Extraction) -
         approved.append(templates.WARNING)
     if extraction.question is not None:
         approved.append(templates.ANSWERS[extraction.question])
-    text = " ".join([*(say(a, language) for a in approved), phrased])
-    return Reply(text=text, options=CITIES if cities else None)
+    return " ".join([*(say(a, language) for a in approved), phrased])
 
 
 def close(
@@ -191,7 +205,7 @@ def close(
 
 def after_close(
     llm: LLM, c: Conversation, closing: Closing, text: str, now: datetime
-) -> Reply:
+) -> str:
     """A closed screening only takes the talent-pool opt-in (decision 018); any
     other message is flagged for a person (process-design §2)."""
     city = c.screening.fields.zone
@@ -210,19 +224,19 @@ def after_close(
             return failed(c, error)
         if extraction.confirmed is True:
             c.pool = PoolConsent(at=now, expires_on=today + POOL_CONSENT, city=city)
-            return Reply(text=say(templates.POOL_YES, c.language))
+            return say(templates.POOL_YES, c.language)
         if extraction.confirmed is False:
-            return Reply(text=say(templates.POOL_NO, c.language))
+            return say(templates.POOL_NO, c.language)
     c.wrote_after_close = True
-    return Reply(text=say(templates.AFTER_CLOSE, c.language))
+    return say(templates.AFTER_CLOSE, c.language)
 
 
-def failed(c: Conversation, error: Exception) -> Reply:
+def failed(c: Conversation, error: Exception) -> str:
     """The LLM failed twice (llm.py retries once): ask again (decision 006)."""
     # The type only: the error holds the model's raw reply, which can quote the
     # candidate (decision 014).
     log.warning("LLM failed in %s: %s", c.id, type(error).__name__)
-    return Reply(text=say(templates.SAY_AGAIN, c.language))
+    return say(templates.SAY_AGAIN, c.language)
 
 
 def heard(before: ScreeningFields, after: ScreeningFields) -> str:

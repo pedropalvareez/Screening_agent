@@ -10,7 +10,7 @@ from fakes import PHRASED, FakeLLM, said
 from sazon import storage
 from sazon.api import app, get_agent
 from sazon.templates import GREETING
-from sazon.turn import Agent
+from sazon.turn import CITIES, Agent
 
 
 @pytest.fixture
@@ -29,16 +29,47 @@ def client(fake: FakeLLM, tmp_path: Path) -> Iterator[TestClient]:
 
 def test_agent_writes_first_then_answers(client: TestClient, fake: FakeLLM) -> None:
     started = client.post("/conversations").json()
-    assert started["reply"] == {"text": GREETING, "options": None}
+    assert started["reply"] == {"text": GREETING, "options": None, "language": "es"}
     fake.extractions["Sí, empecemos"] = said()
     url = f"/conversations/{started['id']}/messages"
     reply = client.post(url, json={"text": "  Sí, empecemos "})
-    assert reply.json() == {"text": PHRASED, "options": None}
+    assert reply.json() == {"text": PHRASED, "options": None, "language": "es"}
 
 
-def test_unknown_conversation_is_not_found(client: TestClient) -> None:
-    reply = client.post("/conversations/nope/messages", json={"text": "Hola"})
+def test_reload_resumes_the_transcript_and_the_city_options(
+    client: TestClient, fake: FakeLLM
+) -> None:
+    conversation_id = client.post("/conversations").json()["id"]
+    url = f"/conversations/{conversation_id}"
+    fake.extractions["Sí"] = said()
+    fake.extractions["Tengo carné"] = said(has_license=True)
+    fake.extractions["Toledo"] = said(zone="Toledo")
+    for text in ["Sí", "Tengo carné", "Toledo"]:
+        last = client.post(f"{url}/messages", json={"text": text}).json()
+    assert last["options"] == CITIES
+    resumed = client.get(url).json()
+    assert resumed["reply"] == last
+    lines = [(line["role"], line["text"]) for line in resumed["transcript"]]
+    assert lines[:2] == [("agent", GREETING), ("candidate", "Sí")]
+    assert lines[-1] == ("agent", last["text"])
+    assert len(lines) == 7
+
+
+@pytest.mark.parametrize(
+    ("method", "url"),
+    [("GET", "/conversations/nope"), ("POST", "/conversations/nope/messages")],
+)
+def test_unknown_conversation_is_not_found(
+    client: TestClient, method: str, url: str
+) -> None:
+    reply = client.request(method, url, json={"text": "Hola"})
     assert reply.status_code == 404
+
+
+def test_root_serves_the_chat(client: TestClient) -> None:
+    page = client.get("/")
+    assert page.status_code == 200
+    assert page.headers["content-type"].startswith("text/html")
 
 
 @pytest.mark.parametrize(

@@ -4,13 +4,25 @@ import functools
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import StringConstraints
 
+from sazon import storage
 from sazon.schema import Strict
-from sazon.turn import Agent, Reply, UnknownConversation, connect, start, turn
+from sazon.storage import Line
+from sazon.turn import (
+    Agent,
+    Reply,
+    UnknownConversation,
+    connect,
+    latest_reply,
+    start,
+    turn,
+)
 
 
 @functools.cache
@@ -39,6 +51,13 @@ class Started(Strict):
     reply: Reply
 
 
+class Resumed(Strict):
+    """The chat after a reload: the transcript, then the last reply's options."""
+
+    transcript: list[Line]
+    reply: Reply
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -50,6 +69,14 @@ def open_conversation(agent: AgentDep) -> Started:
     return Started(id=conversation_id, reply=reply)
 
 
+@app.get("/conversations/{conversation_id}")
+def resume(conversation_id: str, agent: AgentDep) -> Resumed:
+    conversation = storage.load(agent.db, conversation_id)
+    if conversation is None:
+        raise HTTPException(404, "conversation not found")
+    return Resumed(transcript=conversation.transcript, reply=latest_reply(conversation))
+
+
 @app.post("/conversations/{conversation_id}/messages")
 def send_message(
     conversation_id: str, message: CandidateMessage, agent: AgentDep
@@ -58,3 +85,8 @@ def send_message(
         return turn(agent, conversation_id, message.text, datetime.now(UTC))
     except UnknownConversation:
         raise HTTPException(404, "conversation not found") from None
+
+
+# Last, so the routes above match first. The id travels in the URL fragment,
+# which the browser never sends to the server.
+app.mount("/", StaticFiles(directory=Path(__file__).parent / "web", html=True))
