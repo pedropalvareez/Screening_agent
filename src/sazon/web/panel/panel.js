@@ -64,6 +64,12 @@ function place(candidate) {
   return `${city}, ${COUNTRIES[candidate.country] ?? candidate.country}`;
 }
 
+// The name comes after the knockout questions (decision 005), so many have none.
+function displayName(candidate) {
+  if (candidate.name) return candidate.name;
+  return candidate.flagged.includes("full_name") ? "Unnamed · name flagged" : "Unnamed · left before giving a name";
+}
+
 function flags(candidate) {
   return [
     ...candidate.flagged.map((field) => `flagged: ${human(field)}`),
@@ -116,8 +122,8 @@ function rowItem(row) {
   button.type = "button";
   button.dataset.id = row.id;
   const top = el("span", "row-top");
-  top.append(el("span", "name", row.name ?? "No name yet"), badge(row));
-  const state = row.outcome === "abandoned" ? `stopped at ${human(row.stopped)}` : human(row.status);
+  top.append(el("span", "name", displayName(row)), badge(row));
+  const state = row.outcome === "abandoned" ? `stopped at ${human(row.stopped)}` : `hiring: ${human(row.status)}`;
   const chips = el("span", "flags");
   chips.append(...flags(row).map((text) => el("span", "flag", text)));
   button.append(top, el("span", "meta", `${place(row)} · ${state} · ${when(row.at)}`), chips);
@@ -196,7 +202,7 @@ function show(detail, focus) {
   const closed = candidate.outcome === "abandoned" ? "last message" : "closed";
   $("detail").hidden = false;
   document.body.dataset.view = "detail";
-  $("detail-name").textContent = candidate.name ?? "No name yet";
+  $("detail-name").textContent = displayName(candidate);
   $("detail-badge").replaceChildren(badge(candidate));
   $("detail-facts").textContent = [
     place(candidate),
