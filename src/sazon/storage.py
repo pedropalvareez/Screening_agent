@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, Field
 
-from sazon.engine import Outcome, Reason, Screening, Stage
+from sazon.engine import Outcome, Reason, RecruiterStatus, Screening, Stage
 from sazon.schema import Language, RawText, Strict
 
 
@@ -29,7 +29,8 @@ class Closing(Strict):
     outcome: Outcome
     reason: Reason | None
     flagged: list[Stage]
-    summary: str
+    summary: str  # rendered by code from the fields
+    notes: list[str]  # written by the LLM, shown labelled (decision 013)
 
 
 class PoolConsent(Strict):
@@ -51,6 +52,9 @@ class Conversation(Strict):
     closing: Closing | None = None
     wrote_after_close: bool = False  # flagged for human review
     pool: PoolConsent | None = None
+    recruiter_status: RecruiterStatus = "pending"
+    # a recruiter reopened it: closing keeps the screening's outcome (017 guardrail)
+    reopened_at: AwareDatetime | None = None
 
 
 def create(db: Path) -> None:
@@ -76,3 +80,11 @@ def load(db: Path, conversation_id: str) -> Conversation | None:
             "SELECT record FROM conversations WHERE id = ?", (conversation_id,)
         ).fetchone()
     return None if row is None else Conversation.model_validate_json(row[0])
+
+
+def load_all(db: Path) -> list[Conversation]:
+    # shortcut: loads and validates every record on each call, fine at demo scale;
+    # past a few thousand, store outcome and city in indexed columns and query them.
+    with contextlib.closing(sqlite3.connect(db)) as connection:
+        rows = connection.execute("SELECT record FROM conversations").fetchall()
+    return [Conversation.model_validate_json(record) for (record,) in rows]

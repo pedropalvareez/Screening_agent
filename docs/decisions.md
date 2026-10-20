@@ -83,7 +83,7 @@ Template:
 
 ## 012. Recruiter panel (provisional)
 
-- Decision: a work queue (QUALIFIED and NEEDS_REVIEW) with filters by outcome and zone; a detail view with summary, JSON, transcript and the candidate's questions; recruiter_status (pending, contacted, hired, rejected) kept separate from the screening outcome; recruiters can reopen a DISQUALIFIED candidate. Basic auth from .env with fastapi.security.HTTPBasic and secrets.compare_digest.
+- Decision: a work queue (QUALIFIED and NEEDS_REVIEW) with filters by outcome and zone; a detail view with summary, JSON, transcript and the candidate's questions; recruiter_status (pending, contacted, hired, rejected, showed_up, no_show; the last two measure 017's first shift) kept separate from the screening outcome; recruiters can reopen a DISQUALIFIED candidate, which moves it to NEEDS_REVIEW and keeps the screening's outcome for 017's guardrail. The panel is in English, like the summary. Basic auth from .env with fastapi.security.HTTPBasic and secrets.compare_digest.
 - Alternative: a read-only panel; a kanban board; per-user accounts.
 - Trade-off: real tracking for one enum and one endpoint; one shared credential, so there is no per-recruiter audit trail.
 

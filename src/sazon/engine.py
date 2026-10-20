@@ -28,6 +28,10 @@ Stage = Literal[
 ]
 Outcome = Literal["qualified", "needs_review", "disqualified", "withdrawn", "abandoned"]
 Reason = Literal["no_license", "zone_not_covered", "abusive"]
+# The hiring decision stays with a recruiter, apart from the outcome (012, 017).
+RecruiterStatus = Literal[
+    "pending", "contacted", "hired", "rejected", "showed_up", "no_show"
+]
 
 # Field stages in asking order, each with the ScreeningFields attribute it fills.
 FIELD_STAGES: dict[Stage, str] = {
@@ -140,6 +144,13 @@ def outcome(state: Screening, now: datetime) -> tuple[Outcome, Reason | None] | 
     if now - state.last_message_at >= ABANDON_AFTER:
         return ("abandoned", None)
     return None
+
+
+def reopened(closed: Outcome) -> Outcome:
+    """A recruiter reopens a DISQUALIFIED candidate for review (process-design §2)."""
+    if closed != "disqualified":
+        raise ValueError(f"only a disqualified candidate can be reopened, not {closed}")
+    return "needs_review"
 
 
 def apply(
