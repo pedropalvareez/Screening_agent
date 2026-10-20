@@ -18,12 +18,16 @@ from pydantic import (
 )
 
 Availability = Literal["full_time", "part_time", "weekends"]
+# The catch-all goes last: prompts.py names it for two or more slots.
 Schedule = Literal["morning", "afternoon", "evening", "flexible"]
 Platform = Literal[
     "glovo", "uber_eats", "just_eat", "rappi", "didi_food", "own_fleet", "other"
 ]
 Intent = Literal["answer", "question", "withdraw", "off_topic", "abusive"]
 Language = Literal["es", "en", "other"]
+# What the candidate asked: process topics get a code-approved answer, anything
+# else goes to a recruiter (decision 019).
+Question = Literal["duration", "next_steps", "data_use", "other"]
 
 FullName = Annotated[
     str,
@@ -71,7 +75,9 @@ class Extraction(ScreeningFields):
 
     intent: Intent
     language: Language
-    confirmed: bool | None = None  # yes/no to the CONFIRM recap
+    question: Question | None = None
+    # yes/no to a confirmation: the CONFIRM recap, or the talent-pool opt-in (018)
+    confirmed: bool | None = None
 
 
 JSON_OBJECT = TypeAdapter(dict[str, JsonValue])

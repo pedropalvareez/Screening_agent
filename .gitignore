@@ -4,6 +4,9 @@
 # Client brief: local only, never committed
 docs/assignment.md
 
+# Local SQLite database (DB_PATH)
+*.db
+
 # Python / tooling
 .venv/
 __pycache__/
