@@ -98,7 +98,7 @@ def turn(agent: Agent, conversation_id: str, message: str, now: datetime) -> Rep
     """One candidate message in, one reply out. Personal data is redacted before
     the LLM or storage sees it, and the conversation is saved every turn."""
     text = redact(message)
-    with LOCKS[hash(conversation_id) % len(LOCKS)]:
+    with lock(conversation_id):
         conversation = storage.load(agent.db, conversation_id)
         if conversation is None:
             raise UnknownConversation(conversation_id)
@@ -107,6 +107,12 @@ def turn(agent: Agent, conversation_id: str, message: str, now: datetime) -> Rep
         conversation.transcript.append(Line(at=now, role="agent", text=said))
         storage.save(agent.db, conversation)
     return latest_reply(conversation)
+
+
+def lock(conversation_id: str) -> threading.Lock:
+    """A turn waits seconds for the LLM, then saves the whole record: anything
+    else that saves the conversation takes this lock too, or one save is lost."""
+    return LOCKS[hash(conversation_id) % len(LOCKS)]
 
 
 def latest_reply(c: Conversation) -> Reply:
@@ -200,7 +206,8 @@ def close(
         outcome=outcome,
         reason=reason,
         flagged=engine.flagged(state),
-        summary=templates.summary(state, outcome, reason, notes[:3]),
+        summary=templates.summary(state, outcome, reason),
+        notes=notes[:3],
     )
 
 

@@ -37,7 +37,7 @@ Template:
 
 - Decision: a web chat styled as messaging for the demo, built on a channel-agnostic core with one entry point, turn(conversation, message) → reply. WhatsApp is designed as a production adapter, not built. The agent sends the first message.
 - Alternative: real WhatsApp through Twilio or Meta Cloud API; a Telegram bot.
-- Trade-off: no new dependency and a reliable live demo; it is not the channel candidates actually use, so the jump to WhatsApp has to be explained.
+- Trade-off: no new dependency and a reliable live demo; it is not the channel candidates actually use, so the jump to WhatsApp has to be explained. The QUALIFIED closing says a recruiter will message the candidate in the chat, but the demo panel cannot write into it: in production the recruiter replies through WhatsApp, which is not built.
 
 ## 005. Stage order and derived stage (provisional)
 
@@ -83,9 +83,9 @@ Template:
 
 ## 012. Recruiter panel (provisional)
 
-- Decision: a work queue (QUALIFIED and NEEDS_REVIEW) with filters by outcome and zone; a detail view with summary, JSON, transcript and the candidate's questions; recruiter_status (pending, contacted, hired, rejected) kept separate from the screening outcome; recruiters can reopen a DISQUALIFIED candidate. Basic auth from .env with fastapi.security.HTTPBasic and secrets.compare_digest.
+- Decision: a work queue (QUALIFIED and NEEDS_REVIEW) with filters by outcome and zone; a detail view with summary, JSON, transcript and the candidate's questions; recruiter_status (pending, contacted, hired, rejected, showed_up, no_show; the last two measure 017's first shift) kept separate from the screening outcome; recruiters can reopen a DISQUALIFIED candidate, which moves it to NEEDS_REVIEW and keeps the screening's outcome for 017's guardrail. The panel is in English, like the summary. Basic auth from .env with fastapi.security.HTTPBasic and secrets.compare_digest.
 - Alternative: a read-only panel; a kanban board; per-user accounts.
-- Trade-off: real tracking for one enum and one endpoint; one shared credential, so there is no per-recruiter audit trail.
+- Trade-off: real tracking for one enum and one endpoint; one shared credential, so there is no per-recruiter audit trail. The queue is not paginated and the server loads every record per request: fine for the demo, but at about 1,000 applications a week it grows every week, so before production store outcome and city in indexed columns and paginate.
 
 ## 013. Summary (provisional)
 

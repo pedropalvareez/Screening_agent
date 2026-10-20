@@ -101,8 +101,8 @@ def test_happy_path_qualifies_with_a_summary(agent: Agent, fake: FakeLLM) -> Non
     assert (closing.outcome, closing.reason, closing.flagged) == ("qualified", None, [])
     assert "Full name: Ana López García" in closing.summary
     assert "Zone: Getafe → Madrid (ES)" in closing.summary
-    notes = "AI-generated notes:\n- First note.\n- Second note."
-    assert closing.summary.endswith(notes)
+    assert closing.summary.endswith("Flagged fields: none")
+    assert closing.notes == ["First note.", "Second note."]
 
 
 def test_no_licence_disqualifies_on_the_first_answer(
@@ -326,9 +326,9 @@ def test_closing_survives_failed_summary_notes(agent: Agent, fake: FakeLLM) -> N
     no_licence: Step = ("No tengo carné", said(has_license=False))
     _, [reply] = chat(agent, fake, no_licence, conversation_id=conversation_id)
     assert reply.text == say(CLOSINGS["disqualified", "no_license"], "es")
-    assert closed(agent, conversation_id).summary.endswith(
-        "AI-generated notes:\n- unavailable"
-    )
+    closing = closed(agent, conversation_id)
+    assert "Driving licence: no" in closing.summary
+    assert closing.notes == []
 
 
 @pytest.mark.parametrize("question", ["duration", "next_steps", "data_use"])

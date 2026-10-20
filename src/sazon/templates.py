@@ -128,17 +128,13 @@ def key_data(fields: ScreeningFields) -> str:
     )
 
 
-def summary(
-    state: Screening, outcome: Outcome, reason: Reason | None, notes: list[str]
-) -> str:
-    """Key data rendered by code, then the LLM's notes, labelled (decision 013)."""
+def summary(state: Screening, outcome: Outcome, reason: Reason | None) -> str:
+    """The code-rendered part of the summary; the LLM's notes are kept apart, so
+    the panel can label them (decision 013)."""
     return "\n".join(
         [
             f"Outcome: {outcome}" + (f" ({reason})" if reason else ""),
             key_data(state.fields),
             f"Flagged fields: {', '.join(engine.flagged(state)) or 'none'}",
-            "",
-            "AI-generated notes:",
-            *(f"- {note}" for note in notes or ["unavailable"]),
         ]
     )

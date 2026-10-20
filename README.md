@@ -7,12 +7,14 @@ A conversational agent that screens delivery-driver applicants for Grupo Sazón,
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.12.
 
 ```sh
-cp .env.example .env        # fill in the API keys
+cp .env.example .env        # fill in the API keys and the panel login
 uv sync
 uv run --env-file .env uvicorn sazon.api:app --app-dir src --reload
 ```
 
-Conversations are stored in SQLite at `DB_PATH` (default `sazon.db` in the working directory).
+The candidate chat is at http://localhost:8000/ and the recruiter panel at http://localhost:8000/panel, behind `PANEL_USER` and `PANEL_PASSWORD`.
+
+Conversations are stored in SQLite at `DB_PATH` (default `sazon.db` in the working directory). The record format is strict, so a database written by an older version may fail to load: delete it.
 
 Checks (the same ones CI runs):
 

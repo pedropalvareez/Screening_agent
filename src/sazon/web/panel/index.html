@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light dark">
+  <title>Candidates · Grupo Sazón</title>
+  <!-- Absolute paths: the page is served at /panel, not /panel/. -->
+  <link rel="stylesheet" href="/panel/panel.css">
+  <script src="/panel/panel.js" defer></script>
+</head>
+<body data-view="list">
+  <header>
+    <div>
+      <h1>Candidates</h1>
+      <p>Grupo Sazón · recruiter panel</p>
+    </div>
+    <button type="button" id="refresh">Refresh</button>
+  </header>
+
+  <div class="toolbar">
+    <nav id="views" aria-label="Candidate lists">
+      <button type="button" data-view="queue">Queue <span class="count"></span><span class="late"></span></button>
+      <button type="button" data-view="disqualified">Disqualified <span class="count"></span><span class="late"></span></button>
+      <button type="button" data-view="withdrawn">Withdrawn <span class="count"></span><span class="late"></span></button>
+      <button type="button" data-view="abandoned">Abandoned <span class="count"></span><span class="late"></span></button>
+    </nav>
+    <label id="outcome-filter">Outcome
+      <select id="outcome">
+        <option value="">Qualified and needs review</option>
+        <option value="qualified">Qualified</option>
+        <option value="needs_review">Needs review</option>
+      </select>
+    </label>
+    <label>Zone
+      <select id="zone"></select>
+    </label>
+  </div>
+
+  <p id="error" role="alert" hidden></p>
+
+  <main>
+    <section id="list" aria-label="Candidates">
+      <p id="count" class="visually-hidden" aria-live="polite"></p>
+      <ul id="rows"></ul>
+      <p id="empty" hidden>No candidates here.</p>
+    </section>
+
+    <div id="pick">
+      <p>Select a candidate to see the summary, AI notes, data and transcript.</p>
+    </div>
+
+    <section id="detail" aria-labelledby="detail-name" hidden>
+      <button type="button" id="back">← All candidates</button>
+      <div class="detail-head">
+        <h2 id="detail-name" tabindex="-1"></h2>
+        <span id="detail-badge"></span>
+      </div>
+      <p id="detail-facts"></p>
+      <div id="notices"></div>
+
+      <div class="actions">
+        <label>Hiring status
+          <select id="status" aria-describedby="status-help"></select>
+        </label>
+        <button type="button" id="reopen">Reopen for review</button>
+      </div>
+      <p id="status-help" class="caption">Your follow-up after the screening, kept apart from its outcome. Saved when you change it.</p>
+
+      <h3>Summary</h3>
+      <p class="caption">Rendered by code from the validated fields.</p>
+      <pre id="summary" class="summary"></pre>
+
+      <div class="ai">
+        <h3>AI-generated notes</h3>
+        <p class="caption">Written by the model from the transcript. Facts, not an assessment: check them against the transcript.</p>
+        <ul id="notes"></ul>
+        <p id="no-notes" hidden></p>
+      </div>
+
+      <h3>Candidate questions</h3>
+      <p class="caption">Job questions the agent left for a recruiter.</p>
+      <ul id="questions"></ul>
+      <p id="no-questions" hidden>None.</p>
+
+      <h3>Structured data</h3>
+      <p class="caption">Flagged fields are highlighted.</p>
+      <pre id="json" class="json"></pre>
+
+      <h3>Transcript</h3>
+      <p class="caption">Personal data such as phone numbers was redacted before storage.</p>
+      <ol id="transcript"></ol>
+    </section>
+  </main>
+</body>
+</html>
