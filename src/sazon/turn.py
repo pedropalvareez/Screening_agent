@@ -5,6 +5,7 @@ decides.
 turn() is the one entry point, so the web chat, voice and WhatsApp are adapters.
 """
 
+import hashlib
 import logging
 import os
 import re
@@ -190,7 +191,7 @@ def close(
     try:
         written = llm.phrase(prompts.notes(c.transcript))
     except FAILURES as error:
-        log.warning("summary notes failed in %s: %s", c.id, type(error).__name__)
+        log.warning("summary notes failed in %s: %s", tag(c), type(error).__name__)
         written = ""
     notes = [note for line in written.splitlines() if (note := line.strip(" -•*"))]
     outcome, reason = result
@@ -235,8 +236,13 @@ def failed(c: Conversation, error: Exception) -> str:
     """The LLM failed twice (llm.py retries once): ask again (decision 006)."""
     # The type only: the error holds the model's raw reply, which can quote the
     # candidate (decision 014).
-    log.warning("LLM failed in %s: %s", c.id, type(error).__name__)
+    log.warning("LLM failed in %s: %s", tag(c), type(error).__name__)
     return say(templates.SAY_AGAIN, c.language)
+
+
+def tag(c: Conversation) -> str:
+    """A log handle for c. The id itself opens the chat, so it stays out of logs."""
+    return hashlib.sha256(c.id.encode()).hexdigest()[:8]
 
 
 def heard(before: ScreeningFields, after: ScreeningFields) -> str:
