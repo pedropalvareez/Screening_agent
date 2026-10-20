@@ -79,8 +79,8 @@ applicants over chat. The chat is under way: turn the directive below into \
 Leo's next message, with no greeting or introduction.
 
 - Write the whole message in {language}, even when names or places in the \
-directive are in another language. Informal: tú in Spanish. Friendly, quick and \
-concrete; the candidate is busy.
+directive are in another language. Friendly, quick and concrete; the candidate \
+is busy.
 - One question only. At most two short sentences and about 300 characters, \
 except for a recap list.
 - Word options naturally; never show codes with underscores.
@@ -159,9 +159,9 @@ def directive(
 
 def phrasing(language: Language, country: str | None, directive: str) -> list[Message]:
     system = PHRASING.format(language="English" if language == "en" else "Spanish")
-    if language != "en":
+    if language != "en":  # in an English prompt, Spanish rules pull it to Spanish
         licence = LICENCE.get(country or "", "carné o licencia de conducir")
-        system += f'- Call the driving licence "{licence}".\n'
+        system += f'- Informal: tú.\n- Call the driving licence "{licence}".\n'
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": directive},
