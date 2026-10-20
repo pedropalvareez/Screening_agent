@@ -70,6 +70,12 @@ function displayName(candidate) {
   return candidate.flagged.includes("full_name") ? "Unnamed · name flagged" : "Unnamed · left before giving a name";
 }
 
+// The row and the detail date the screening, not the hiring status.
+function stamp(candidate) {
+  const label = candidate.outcome === "abandoned" ? "last message" : "closed";
+  return `${label} ${when(candidate.at)}`;
+}
+
 function flags(candidate) {
   return [
     ...candidate.flagged.map((field) => `flagged: ${human(field)}`),
@@ -128,7 +134,7 @@ function rowItem(row) {
   chips.append(...flags(row).map((text) => el("span", "flag", text)));
   // The place may wrap; the status and the date stay whole.
   const meta = el("span", "meta", place(row));
-  for (const part of [state, when(row.at)]) meta.append(" · ", el("span", "keep", part));
+  for (const part of [state, stamp(row)]) meta.append(" · ", el("span", "keep", part));
   button.append(top, meta, chips);
   button.addEventListener("click", () => open(row.id));
   const item = el("li");
@@ -207,7 +213,6 @@ function transcriptLine(line, index, lines) {
 function show(detail, focus) {
   current = detail;
   const candidate = detail.candidate;
-  const closed = candidate.outcome === "abandoned" ? "last message" : "closed";
   $("detail").hidden = false;
   $("pick").hidden = true;
   document.body.dataset.view = "detail";
@@ -216,7 +221,7 @@ function show(detail, focus) {
   $("detail-facts").textContent = [
     place(candidate),
     LANGUAGES[detail.language] ?? detail.language,
-    `${closed} ${when(candidate.at)}`,
+    stamp(candidate),
   ].join(" · ");
   $("notices").replaceChildren(...notices(detail));
   $("status").value = candidate.status;
