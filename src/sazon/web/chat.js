@@ -48,9 +48,13 @@ function setLanguage(language) {
   send.setAttribute("aria-label", labels.send);
 }
 
+function scrollDown() {
+  log.scrollTop = log.scrollHeight;
+}
+
 function add(element) {
   log.append(element);
-  element.scrollIntoView({ block: "end" });
+  scrollDown();
 }
 
 function bubble(role, text) {
@@ -121,6 +125,7 @@ function showOptions(cities) {
 function show(reply) {
   setLanguage(reply.language);
   showOptions(reply.options);
+  scrollDown(); // the options take room from the log
 }
 
 function setBusy(value) {
