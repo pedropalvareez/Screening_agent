@@ -14,7 +14,7 @@ PKG = ROOT / "src" / "sazon"
 FORBIDDEN_IMPORTS = {
     "llm": {"engine", "storage", "api"},  # the LLM drafts and extracts, never decides
     "api": {"llm"},  # api reaches the LLM only through turn
-    "engine": {"llm", "storage", "api"},  # pure rules: no LLM, no I/O
+    "engine": {"llm", "storage", "api"},  # pure rules: no LLM, I/O only for config
 }
 
 # Literal aliases in schema.py that label messages, not business values; their

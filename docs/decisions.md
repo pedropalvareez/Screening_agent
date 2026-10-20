@@ -51,9 +51,9 @@ Template:
 
 ## 007. Service zones (provisional)
 
-- Decision: a fictional list of 12 cities holding the 45 locations; coverage is checked per city. ES: Madrid, Barcelona, Valencia, Sevilla, Málaga, Bilbao, Zaragoza. MX: Ciudad de México, Guadalajara, Monterrey, Puebla, Querétaro. The LLM extracts the city as written; code resolves it with a metro-area alias table and difflib. One re-ask before disqualifying.
-- Alternative: the LLM maps to the enum directly; city plus neighbourhood mapped to one of the 45 locations; postcode to distance from the nearest location.
-- Trade-off: only code decides coverage; the alias table is maintained by hand, and an unlisted suburb can be wrongly rejected, which the re-ask and recruiter review mitigate. City granularity also accepts candidates far from any location; postcode distance is the production fix, and it needs a postcode-to-coordinates table or a geocoder.
+- Decision: a fictional list of 12 cities holding the 45 locations; coverage is checked per city. ES: Madrid, Barcelona, Valencia, Sevilla, Málaga, Bilbao, Zaragoza. MX: Ciudad de México, Guadalajara, Monterrey, Puebla, Querétaro. The LLM extracts the city as written; code resolves it with a metro-area alias table and difflib. One re-ask before disqualifying; the re-ask shows the 12 cities as tap options grouped by country, plus "other city" to type one.
+- Alternative: the LLM maps to the enum directly; a city dropdown from the first question; city plus neighbourhood mapped to one of the 45 locations; postcode to distance from the nearest location.
+- Trade-off: only code decides coverage; the alias table is maintained by hand, and an unlisted suburb can be wrongly rejected, which the re-ask (the candidate taps the city the suburb belongs to) and recruiter review mitigate. Tap options cannot catch a wrong fuzzy match (Palencia read as Valencia), which only CONFIRM shows back. A dropdown first would cost the natural dialogue and leave uncovered towns without an option. City granularity also accepts candidates far from any location; postcode distance is the production fix, and it needs a postcode-to-coordinates table or a geocoder.
 
 ## 008. Field rules (provisional)
 

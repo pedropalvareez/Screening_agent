@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from sazon.engine import Screening, apply, flagged, outcome, stage
+from sazon.engine import ZONES, Screening, apply, flagged, outcome, resolve_zone, stage
 from sazon.schema import Extraction, Intent
 
 NOW = datetime(2026, 10, 19, 12, tzinfo=UTC)
@@ -32,6 +32,7 @@ ANSWERS = [
 ]
 BEFORE_START = run(FRESH, msg(), *ANSWERS[:-1])
 AT_CONFIRM = run(BEFORE_START, ANSWERS[-1])
+AT_ZONE = run(FRESH, msg(), ANSWERS[0])
 
 
 def test_stage_follows_the_fixed_order() -> None:
@@ -61,6 +62,57 @@ def test_one_message_fills_several_fields_in_any_order() -> None:
     state = run(FRESH, msg(has_license=True, zone="Madrid", start_date=TODAY))
     assert stage(state) == "name"
     assert state.fields.start_date == TODAY
+
+
+@pytest.mark.parametrize(
+    ("raw", "city"),
+    [
+        ("Getafe", "Madrid"),
+        ("CDMX", "Ciudad de México"),
+        ("Zapopan", "Guadalajara"),
+        ("Barcelna", "Barcelona"),
+        ("Málaga", "Málaga"),
+        ("malaga", "Málaga"),
+        ("Malga", "Málaga"),  # a typo and a missing accent
+        ("Toledo", None),
+        ("Palma", None),  # one letter from Parla, a Madrid alias
+    ],
+)
+def test_city_as_written_resolves_to_a_service_city(raw: str, city: str | None) -> None:
+    assert resolve_zone(raw) == city
+
+
+def test_every_listed_name_resolves_to_its_own_city() -> None:
+    listed = [(n, city) for city, zone in ZONES.items() for n in (city, *zone.aliases)]
+    assert [(n, resolve_zone(n)) for n, _ in listed] == listed
+
+
+def test_covered_zone_keeps_the_raw_text_and_moves_on() -> None:
+    state = run(AT_ZONE, msg(zone="Getafe"))
+    assert state.fields.zone == "Getafe"
+    assert stage(state) == "name"
+
+
+def test_uncovered_zone_is_asked_once_more_then_disqualifies() -> None:
+    once = run(AT_ZONE, msg(zone="Toledo"))
+    assert stage(once) == "zone"
+    assert outcome(once, NOW) is None
+    assert stage(run(once, msg(zone="Madrid"))) == "name"
+    twice = run(once, msg(zone="Toledo"))
+    assert outcome(twice, NOW) == ("disqualified", "zone_not_covered")
+    assert twice.fields.zone == "Toledo"
+
+
+def test_uncovered_zone_is_not_an_invalid_answer() -> None:
+    state = run(AT_ZONE, msg(), msg(), msg(zone="Toledo"))
+    assert flagged(state) == []
+    assert stage(state) == "zone"
+
+
+def test_invalid_answers_after_an_uncovered_zone_still_flag_it() -> None:
+    state = run(AT_ZONE, msg(zone="Toledo"), msg(), msg(), msg())
+    assert flagged(state) == ["zone"]
+    assert outcome(state, NOW) is None
 
 
 def test_zero_years_needs_no_platforms() -> None:

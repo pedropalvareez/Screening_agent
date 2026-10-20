@@ -1,0 +1,73 @@
+# Fictional service area (docs/decisions.md 007): the 12 cities that hold the 45
+# locations. Aliases are metro-area towns and common names for the city. Matching
+# lowercases and strips accents, so list each spelling once.
+
+[zones."Madrid"]
+country = "ES"
+aliases = [
+    "Getafe", "Leganés", "Fuenlabrada", "Móstoles", "Alcorcón", "Parla",
+    "Alcalá de Henares", "Torrejón de Ardoz", "Coslada", "Rivas-Vaciamadrid",
+    "Alcobendas", "San Sebastián de los Reyes", "Pozuelo de Alarcón", "Las Rozas",
+    "Majadahonda",
+]
+
+[zones."Barcelona"]
+country = "ES"
+aliases = [
+    "BCN", "L'Hospitalet de Llobregat", "Hospitalet", "Badalona", "Sabadell",
+    "Terrassa", "Santa Coloma de Gramenet", "Cornellà de Llobregat",
+    "Sant Cugat del Vallès", "El Prat de Llobregat", "Mataró",
+]
+
+[zones."Valencia"]
+country = "ES"
+aliases = ["Torrent", "Paterna", "Mislata", "Burjassot", "Manises", "Alboraya"]
+
+[zones."Sevilla"]
+country = "ES"
+aliases = [
+    "Seville", "Dos Hermanas", "Alcalá de Guadaíra", "Mairena del Aljarafe", "Camas",
+    "La Rinconada",
+]
+
+[zones."Málaga"]
+country = "ES"
+aliases = ["Torremolinos", "Benalmádena", "Rincón de la Victoria", "Alhaurín de la Torre"]
+
+[zones."Bilbao"]
+country = "ES"
+aliases = [
+    "Bilbo", "Barakaldo", "Getxo", "Portugalete", "Santurtzi", "Basauri", "Leioa",
+    "Sestao",
+]
+
+[zones."Zaragoza"]
+country = "ES"
+aliases = ["Saragossa", "Utebo", "Cuarte de Huerva", "Villanueva de Gállego"]
+
+[zones."Ciudad de México"]
+country = "MX"
+aliases = [
+    "CDMX", "DF", "D.F.", "Distrito Federal", "Mexico City", "Iztapalapa", "Coyoacán",
+    "Tlalpan", "Gustavo A. Madero", "Azcapotzalco", "Ecatepec", "Nezahualcóyotl",
+    "Naucalpan", "Tlalnepantla",
+]
+
+[zones."Guadalajara"]
+country = "MX"
+aliases = ["GDL", "Zapopan", "Tlaquepaque", "Tonalá", "Tlajomulco de Zúñiga"]
+
+[zones."Monterrey"]
+country = "MX"
+aliases = [
+    "MTY", "San Nicolás de los Garza", "Guadalupe", "Apodaca", "San Pedro Garza García",
+    "Santa Catarina", "General Escobedo",
+]
+
+[zones."Puebla"]
+country = "MX"
+aliases = ["Cholula", "San Andrés Cholula", "San Pedro Cholula", "Cuautlancingo"]
+
+[zones."Querétaro"]
+country = "MX"
+aliases = ["Santiago de Querétaro", "Qro", "Corregidora", "El Marqués"]

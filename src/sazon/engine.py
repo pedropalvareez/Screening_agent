@@ -1,12 +1,17 @@
-"""Business rules: derived stage, knockouts and outcomes.
+"""Business rules: derived stage, knockouts, outcomes and zone coverage.
 
-Pure functions, no LLM, no I/O and no clock: callers pass `now` and `today`.
+Pure functions, no LLM and no clock: callers pass `now` and `today`. The only I/O
+is reading config/zones.toml once, at import.
 """
 
+import difflib
+import tomllib
+import unicodedata
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Literal
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, Field, TypeAdapter
 
 from sazon.schema import Extraction, ScreeningFields, Strict
 
@@ -22,7 +27,7 @@ Stage = Literal[
     "confirm",
 ]
 Outcome = Literal["qualified", "needs_review", "disqualified", "withdrawn", "abandoned"]
-Reason = Literal["no_license", "abusive"]
+Reason = Literal["no_license", "zone_not_covered", "abusive"]
 
 # Field stages in asking order, each with the ScreeningFields attribute it fills.
 FIELD_STAGES: dict[Stage, str] = {
@@ -37,6 +42,44 @@ FIELD_STAGES: dict[Stage, str] = {
 MAX_INVALID_ANSWERS = 3
 START_WINDOW = timedelta(days=365)
 ABANDON_AFTER = timedelta(hours=72)
+# shortcut: one typo in a name of 7+ letters matches, and so does a real uncovered
+# town one letter away (Palencia -> Valencia); CONFIRM shows the city back.
+# Postcode distance is the production fix (decision 007).
+ZONE_MATCH_CUTOFF = 0.85
+
+
+class Zone(Strict):
+    country: Literal["ES", "MX"]
+    aliases: list[str]
+
+
+ZONES_FILE = Path(__file__).resolve().parents[2] / "config" / "zones.toml"
+ZONES = TypeAdapter(dict[str, Zone]).validate_python(
+    tomllib.loads(ZONES_FILE.read_text(encoding="utf-8"))["zones"]
+)
+
+
+def normalize(text: str) -> str:
+    """Lowercase, accents stripped: "Málaga" -> "malaga"."""
+    decomposed = unicodedata.normalize("NFKD", text.casefold())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+# Every listed spelling, normalized, to its service city.
+CITY_BY_NAME = {
+    normalize(name): city
+    for city, zone in ZONES.items()
+    for name in (city, *zone.aliases)
+}
+
+
+def resolve_zone(raw: str) -> str | None:
+    """The service city for a city as written, or None when it is not covered."""
+    name = normalize(raw)
+    if name in CITY_BY_NAME:
+        return CITY_BY_NAME[name]
+    close = difflib.get_close_matches(name, CITY_BY_NAME, n=1, cutoff=ZONE_MATCH_CUTOFF)
+    return CITY_BY_NAME[close[0]] if close else None
 
 
 class Screening(Strict):
@@ -49,15 +92,23 @@ class Screening(Strict):
     confirmed: bool = False
     withdrawn: bool = False
     abusive_messages: int = 0
+    uncovered_zones: int = 0  # answers naming a city outside the service area
     invalid_answers: dict[Stage, int] = Field(default_factory=dict[Stage, int])
 
 
+def missing(fields: ScreeningFields, stage: Stage) -> bool:
+    """A field stage still unanswered. A zone counts once it resolves to a city."""
+    if stage == "zone":
+        return fields.zone is None or resolve_zone(fields.zone) is None
+    return getattr(fields, FIELD_STAGES[stage]) is None
+
+
 def flagged(state: Screening) -> list[Stage]:
-    """Field stages still empty after MAX_INVALID_ANSWERS invalid answers."""
+    """Field stages still unanswered after MAX_INVALID_ANSWERS invalid answers."""
     return [
         stage
-        for stage, field in FIELD_STAGES.items()
-        if getattr(state.fields, field) is None
+        for stage in FIELD_STAGES
+        if missing(state.fields, stage)
         and state.invalid_answers.get(stage, 0) >= MAX_INVALID_ANSWERS
     ]
 
@@ -68,8 +119,8 @@ def stage(state: Screening) -> Stage:
     if not state.started:
         return "greeting"
     skipped = flagged(state)
-    for s, field in FIELD_STAGES.items():
-        if getattr(state.fields, field) is None and s not in skipped:
+    for s in FIELD_STAGES:
+        if missing(state.fields, s) and s not in skipped:
             return s
     return "confirm"
 
@@ -82,6 +133,8 @@ def outcome(state: Screening, now: datetime) -> tuple[Outcome, Reason | None] | 
         return ("withdrawn", "abusive")
     if state.fields.has_license is False:
         return ("disqualified", "no_license")
+    if state.uncovered_zones >= 2:  # one re-ask first
+        return ("disqualified", "zone_not_covered")
     if state.confirmed:
         return ("needs_review", None) if flagged(state) else ("qualified", None)
     if now - state.last_message_at >= ABANDON_AFTER:
@@ -112,9 +165,15 @@ def apply(
     start = fields.start_date
     if start is not None and not today <= start <= today + START_WINDOW:
         fields = fields.model_copy(update={"start_date": None})
+    uncovered = extraction.zone is not None and resolve_zone(extraction.zone) is None
     invalid_answers = dict(state.invalid_answers)
-    field = FIELD_STAGES.get(asked)
-    if extraction.intent == "answer" and field and getattr(fields, field) is None:
+    # an uncovered city is a valid answer with its own re-ask, not an invalid one
+    if (
+        extraction.intent == "answer"
+        and asked in FIELD_STAGES
+        and missing(fields, asked)
+        and not uncovered
+    ):
         invalid_answers[asked] = invalid_answers.get(asked, 0) + 1
     return Screening(
         last_message_at=now,
@@ -126,5 +185,6 @@ def apply(
         and fields == state.fields,
         withdrawn=extraction.intent == "withdraw",
         abusive_messages=state.abusive_messages + (extraction.intent == "abusive"),
+        uncovered_zones=state.uncovered_zones + uncovered,
         invalid_answers=invalid_answers,
     )
