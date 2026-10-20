@@ -4,6 +4,7 @@ turn.py depends on the LLM protocol, so tests pass a fake instead of OpenRouter.
 """
 
 import os
+import time
 from typing import Literal, Protocol, TypedDict
 
 import httpx2
@@ -12,10 +13,10 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 from sazon.schema import Extraction, parse_extraction
 
 MODEL = "anthropic/claude-haiku-5.5"
-# Observed 1.7-8.6 s per call, depending on the provider OpenRouter picks.
-# shortcut: the timeout is per read, and OpenRouter sends keep-alive whitespace
-# while it waits, so a stuck call can run longer; add a total deadline if turns hang.
-TIMEOUT = 20.0
+# Observed 1.7-8.6 s per call. OpenRouter sends keep-alive whitespace while it
+# waits, so a read timeout alone never fires: complete() also checks a deadline
+# after every read, and one attempt ends within 2 x TIMEOUT.
+TIMEOUT = 15.0
 FAILURES = (httpx2.HTTPError, ValidationError)
 
 
@@ -108,14 +109,25 @@ class OpenRouter:
             "model": MODEL,
             "messages": messages,
             "reasoning": {"effort": "low"},
-            # require_parameters: only providers that enforce response_format.
-            # data_collection: no provider that trains on inputs (decision 014).
-            "provider": {"require_parameters": True, "data_collection": "deny"},
+            "provider": {
+                # Fastest in the #6 spike (Vertex took 8 s); the rest stay fallbacks.
+                "order": ["anthropic", "azure"],
+                # Only providers that enforce response_format.
+                "require_parameters": True,
+                # No provider that trains on inputs (decision 014).
+                "data_collection": "deny",
+            },
         }
         if response_format is not None:
             body["response_format"] = response_format
-        response = self.client.post("/chat/completions", json=body)
-        response.raise_for_status()
+        deadline = time.monotonic() + TIMEOUT
+        content = b""
+        with self.client.stream("POST", "/chat/completions", json=body) as response:
+            response.raise_for_status()
+            for chunk in response.iter_bytes():
+                if time.monotonic() > deadline:
+                    raise httpx2.ReadTimeout("deadline", request=response.request)
+                content += chunk
         # Some errors arrive as 200 with an "error" body: Completion rejects them.
-        completion = Completion.model_validate_json(response.content)
+        completion = Completion.model_validate_json(content)
         return completion.choices[0].message.content

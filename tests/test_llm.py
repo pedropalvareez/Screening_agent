@@ -1,3 +1,6 @@
+import time
+from collections.abc import Iterator
+
 import httpx2
 import pytest
 from pydantic import ValidationError
@@ -50,7 +53,11 @@ def test_extract_sends_schema_from_schema_py(monkeypatch: pytest.MonkeyPatch) ->
         "type": "json_schema",
         "json_schema": {"name": "extraction", "strict": True, "schema": expected},
     }
-    assert body["provider"] == {"require_parameters": True, "data_collection": "deny"}
+    assert body["provider"] == {
+        "order": ["anthropic", "azure"],
+        "require_parameters": True,
+        "data_collection": "deny",
+    }
 
 
 def test_invalid_field_is_dropped_without_retry(
@@ -85,6 +92,24 @@ def test_extract_raises_after_second_failure(monkeypatch: pytest.MonkeyPatch) ->
     bad = completion("not json")
     llm, sent = openrouter(monkeypatch, bad, bad, completion(VALID))
     with pytest.raises(ValidationError):
+        llm.extract(ASK)
+    assert len(sent) == 2
+
+
+def keepalive() -> Iterator[bytes]:
+    """What OpenRouter streams while a call hangs, here forever."""
+    while True:
+        time.sleep(0.01)
+        yield b"\n"
+
+
+def test_extract_gives_up_on_a_call_that_never_ends(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("sazon.llm.TIMEOUT", 0.05)
+    hung = [httpx2.Response(200, content=keepalive()) for _ in range(2)]
+    llm, sent = openrouter(monkeypatch, *hung)
+    with pytest.raises(httpx2.TimeoutException):
         llm.extract(ASK)
     assert len(sent) == 2
 
