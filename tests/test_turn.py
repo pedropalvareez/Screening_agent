@@ -297,6 +297,7 @@ def test_failed_extraction_asks_again_and_keeps_the_state(
     # Only the error type is logged: the error quotes the candidate (decision 014).
     assert type(error).__name__ in caplog.text
     assert "Ana" not in caplog.text
+    assert conversation_id not in caplog.text  # the id opens the transcript
 
 
 def test_failed_turn_during_the_zone_re_ask_keeps_the_cities(
