@@ -5,8 +5,8 @@ OpenRouter, and Sonnet 5.5 judges what Haiku wrote. Needs OPENROUTER_API_KEY:
     uv run --env-file .env pytest evals -m live
 
 A test fails only when its conversation ends in another outcome. Everything else
-is measured, printed after the run and dumped as JSON in pytest's temporary
-folder. Every name, city and answer is fictional.
+is measured, printed after the run and dumped as JSON in evals/out/, one file per
+run. Every name, city and answer is fictional.
 """
 
 import math
@@ -16,6 +16,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from functools import partial
+from pathlib import Path
 from typing import Literal, get_args
 
 import pytest
@@ -38,6 +39,7 @@ NOW = datetime(2026, 10, 21, 10, tzinfo=UTC)  # a Wednesday in Spain and in Mexi
 JUDGE = "anthropic/claude-sonnet-5.5"
 RUNS = 3  # per scenario: one run cannot tell a slip from a habit
 LIMIT = 300  # characters per reply; the recap is exempt (process-design §4)
+OUT = Path(__file__).parent / "out"  # gitignored; pytest prunes its temp folders
 GENDERED = re.compile(r"\b(?:he|him|his|she|her|hers|himself|herself)\b", re.I)
 
 # What one candidate message should extract: an answer, unless stated otherwise.
@@ -646,13 +648,12 @@ def agent(recorder: Recorder, tmp_path_factory: pytest.TempPathFactory) -> Agent
 
 
 @pytest.fixture(scope="module")
-def runs(
-    report: list[str], tmp_path_factory: pytest.TempPathFactory
-) -> Iterator[list[Run]]:
+def runs(report: list[str]) -> Iterator[list[Run]]:
     """Every conversation of the session, reported after the last one."""
     done: list[Run] = []
     yield done
-    dump = tmp_path_factory.getbasetemp() / "evals.json"
+    OUT.mkdir(exist_ok=True)
+    dump = OUT / f"{datetime.now(UTC):%Y-%m-%dT%H%M%SZ}.json"
     dump.write_bytes(RUN_LIST.dump_json(done, indent=2))
     report.extend([*metrics(done), f"Every turn, call and verdict: {dump}"])
 
