@@ -50,7 +50,7 @@ select = [
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
-include = ["src", "tests"]
+include = ["src", "tests", "evals"]
 # Escape hatches must name a rule: only "# pyright: ignore[rule]" works (PGH003 enforces the rule).
 enableTypeIgnoreComments = false
 # An escape hatch that no longer suppresses anything must be deleted.
