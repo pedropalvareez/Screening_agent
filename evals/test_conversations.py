@@ -297,6 +297,10 @@ application, such as a city outside the service area.
 - contradicts: it goes against the directive, such as saying the application \
 cannot go on when the directive asks the next question, or it asks about \
 something else than the directive does.
+- judges: it judges an answer instead of only acknowledging it: it calls it \
+good, useful, enough, fine or a problem, as in "dos años en Rappi se nota", "es \
+buena base" or "three years of delivery work is helpful to know". A plain \
+acknowledgement such as "Perfecto, anotado" or "Thanks, got it" does not count.
 Also give language: es or en, the language the message is written in, or other \
 for another language or a mix of both. Names and places do not count.
 """
@@ -336,6 +340,7 @@ class ReplyVerdict(Strict):
     greets: bool
     thanks_bad_news: bool
     contradicts: bool
+    judges: bool
 
 
 class NotesVerdict(Strict):
@@ -379,6 +384,7 @@ REPLY_CHECKS: dict[str, Callable[[Exchange, ReplyVerdict], bool]] = {
     "greets": lambda e, v: v.greets,
     "thanks for bad news": lambda e, v: v.thanks_bad_news,
     "contradicts the directive": lambda e, v: v.contradicts,
+    "judges the answer": lambda e, v: v.judges,
 }
 NOTES_CHECKS: dict[str, Callable[[Run, NotesVerdict], bool]] = {
     "names the candidate or uses a gendered pronoun": lambda r, v: bool(r.named),
