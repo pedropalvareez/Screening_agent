@@ -192,14 +192,19 @@ def close(
     result: tuple[Outcome, Reason | None],
     now: datetime,
 ) -> Closing:
-    """Freeze the outcome and write the summary (decision 013). If the notes fail,
-    the summary keeps the key data and the candidate still gets the closing."""
+    """Freeze the outcome and write the summary (decision 013). If the note fails,
+    the summary keeps what code rendered and the candidate still gets the closing."""
+    today = local_date(state.fields, now)
+    prompt = prompts.notes(templates.key_data(state.fields), today, c.transcript)
+    notes: list[str] | None = None  # the call failed
     try:
-        written = llm.phrase(prompts.notes(c.transcript))
+        written = llm.phrase(prompt)
     except FAILURES as error:
         log.warning("summary notes failed in %s: %s", tag(c), type(error).__name__)
-        written = ""
-    notes = [note for line in written.splitlines() if (note := line.strip(" -•*"))]
+    else:
+        lines = [note for line in written.splitlines() if (note := line.strip(" -•*"))]
+        none = not lines or lines[0].rstrip(".").upper() == "NONE"
+        notes = [] if none else lines[:1]
     outcome, reason = result
     return Closing(
         at=now,
@@ -207,7 +212,7 @@ def close(
         reason=reason,
         flagged=engine.flagged(state),
         summary=templates.summary(state, outcome, reason),
-        notes=notes[:3],
+        notes=notes,
     )
 
 

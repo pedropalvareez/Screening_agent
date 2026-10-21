@@ -41,6 +41,7 @@ RUNS = 3  # per scenario: one run cannot tell a slip from a habit
 LIMIT = 300  # characters per reply; the recap is exempt (process-design §4)
 OUT = Path(__file__).parent / "out"  # gitignored; pytest prunes its temp folders
 GENDERED = re.compile(r"\b(?:he|him|his|she|her|hers|himself|herself)\b", re.I)
+LABEL = re.compile(r"(?:notes?\s*\d*|\d+)\s*[.:)]", re.I)  # "Note 1:", "Note:", "1."
 
 # What one candidate message should extract: an answer, unless stated otherwise.
 ES = partial(Extraction, intent="answer", language="es")
@@ -306,19 +307,26 @@ for another language or a mix of both. Names and places do not count.
 """
 
 NOTES_RULES = """\
-You review notes an AI wrote for a recruiter about a screening chat between Leo, \
-an AI assistant, and a delivery-driver applicant. You get what the AI was given, \
-then its notes. The notes must report facts from the chat, in English, without \
-judging the candidate.
+You review a note an AI wrote for a recruiter about a screening chat between \
+Leo, an AI assistant, and a delivery-driver applicant. You get what the AI was \
+given, today's date, the key data code recorded and the candidate's messages, \
+then its note, or NONE when it wrote none. The note must state what the \
+candidate wrote that the key data does not hold, in English, without judging the \
+candidate. Code reports the candidate's questions, corrected and invalid \
+answers, language and any abuse elsewhere, so a note that leaves those out is \
+right.
 
-For each rule, answer true if the notes break it, false if not:
-- assesses: they assess, rate, praise, criticise or recommend the candidate, or \
-guess at their traits, feelings or motives ("motivated", "reliable", "seems \
+For each rule, answer true if the note breaks it, false if not:
+- assesses: it assesses, rates, praises, criticises or recommends the candidate, \
+or guesses at their traits, feelings or motives ("motivated", "reliable", "seems \
 nervous").
-- unsupported: they state something the transcript contradicts or does not \
-show, such as a question the candidate never asked or a correction they never \
-made. Paraphrases, translated quotes and small wording differences do not count.
-Also give language: en or es, the language the notes are written in, or other \
+- unsupported: it states something the messages contradict or do not show, \
+such as a question the candidate never asked, a correction they never made or a \
+condition they never wrote. Paraphrases, translated quotes and small wording \
+differences do not count.
+- misses: the messages show a condition, a limit or a doubt about the job that \
+the key data does not hold, and the note leaves it out or is NONE.
+Also give language: en or es, the language the note is written in, or other \
 for another language or a mix of both. Names, places and quotes do not count.
 """
 
@@ -347,6 +355,7 @@ class NotesVerdict(Strict):
     language: Language
     assesses: bool
     unsupported: bool
+    misses: bool
 
 
 class Exchange(Strict):
@@ -386,12 +395,17 @@ REPLY_CHECKS: dict[str, Callable[[Exchange, ReplyVerdict], bool]] = {
     "contradicts the directive": lambda e, v: v.contradicts,
     "judges the answer": lambda e, v: v.judges,
 }
+# What a written note must not do; rates count the closings with a note.
 NOTES_CHECKS: dict[str, Callable[[Run, NotesVerdict], bool]] = {
     "names the candidate or uses a gendered pronoun": lambda r, v: bool(r.named),
+    "labelled": lambda r, v: any(LABEL.match(note) for note in r.notes),
     "not in English": lambda r, v: v.language != "en",
     "assesses the candidate": lambda r, v: v.assesses,
     "states what the chat does not show": lambda r, v: v.unsupported,
 }
+# Judged on every closing, NONE included: a model that always says NONE passes
+# the checks above.
+MISSES = "misses what the fields do not hold"
 
 
 class Recorder(OpenRouter):
@@ -507,16 +521,16 @@ def converse(
             )
         )
     closing = saved(agent, conversation_id).closing
-    notes = [] if closing is None else closing.notes
+    written = None if closing is None else closing.notes  # None: no note written
+    notes = written or []
     given = [c.prompt for e in exchanges for c in e.calls if c.kind == "notes"]
     notes_verdict = None
-    if notes and given:
-        written = "\n".join(notes)
+    if written is not None and given:
         notes_verdict = judged(
             judge,
             NotesVerdict,
             NOTES_RULES,
-            f"{given[-1]}\n<notes>\n{written}\n</notes>",
+            f"{given[-1]}\n<note>\n{'\n'.join(notes) or 'NONE'}\n</note>",
         )
     return Run(
         label=label,
@@ -587,18 +601,21 @@ def metrics(runs: list[Run]) -> list[str]:
                 ]
                 if broken:
                     failures.append(f"{where}: {', '.join(broken)}: {e.reply!r}")
-        if run.notes_verdict is not None:
+        if (verdict := run.notes_verdict) is not None:
             broken = [
                 rule
                 for rule, check in NOTES_CHECKS.items()
-                if check(run, run.notes_verdict)
+                if run.notes and check(run, verdict)
             ]
+            if verdict.misses:
+                broken.append(MISSES)
             if broken:
                 failures.append(
                     f"{run.label} notes: {', '.join(broken)}: {run.notes!r}"
                 )
     worded = [(e, e.verdict) for e in exchanges if e.verdict is not None]
-    noted = [(r, r.notes_verdict) for r in runs if r.notes_verdict is not None]
+    closings = [(r, r.notes_verdict) for r in runs if r.notes_verdict is not None]
+    noted = [(r, v) for r, v in closings if r.notes]
     seconds = {"turn": [e.seconds for e in exchanges]} | {
         kind: [c.seconds for c in calls if c.kind == kind] for kind in get_args(Kind)
     }
@@ -622,11 +639,12 @@ def metrics(runs: list[Run]) -> list[str]:
             f"  {rule}: {share(sum(check(e, v) for e, v in worded), len(worded))}"
             for rule, check in REPLY_CHECKS.items()
         ),
-        f"AI notes: {len(noted)} closings",
+        f"AI notes: {len(noted)} of {len(closings)} judged closings, NONE in the rest",
         *(
             f"  {rule}: {share(sum(check(r, v) for r, v in noted), len(noted))}"
             for rule, check in NOTES_CHECKS.items()
         ),
+        f"  {MISSES}: {share(sum(v.misses for _, v in closings), len(closings))}",
         f"Failures: {len(failures)}",
         *(f"  {failure}" for failure in failures),
     ]

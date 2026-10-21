@@ -190,6 +190,24 @@ def test_correction_reruns_the_rules() -> None:
     assert stage(past_date) == "start_date"
 
 
+def test_a_changed_valid_answer_is_recorded_as_corrected() -> None:
+    fixes = [msg(zone="Barcelona"), msg(preferred_schedule="morning")]
+    state = run(AT_CONFIRM, *fixes, msg(zone="Badalona"))
+    assert state.corrected == ["zone", "schedule"]
+
+
+def test_a_repeated_answer_or_a_zone_re_ask_is_no_correction() -> None:
+    repeated = run(AT_CONFIRM, msg(zone="Madrid"))
+    re_asked = run(AT_ZONE, msg(zone="Toledo"), msg(zone="Madrid"))
+    assert repeated.corrected == re_asked.corrected == []
+
+
+def test_every_question_topic_is_recorded() -> None:
+    duration = msg("question", question="duration")
+    state = run(FRESH, duration, msg(), msg(question="other", has_license=True))
+    assert state.topics == ["duration", "other"]
+
+
 def test_correcting_a_flagged_field_clears_the_flag() -> None:
     flagged_license = run(FRESH, msg(), msg(), msg(), msg(), *ANSWERS[1:])
     state = run(flagged_license, msg(has_license=True), msg(confirmed=True))

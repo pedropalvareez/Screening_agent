@@ -3,7 +3,7 @@
 from sazon.llm import Message
 from sazon.schema import Extraction, Intent, Language
 
-# Every phrased reply; parsed as summary notes, it gives two.
+# Every phrased reply; parsed as the summary note, only its first line is kept.
 PHRASED = "First note.\nSecond note."
 
 
