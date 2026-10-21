@@ -57,7 +57,7 @@ enableTypeIgnoreComments = false
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "evals"]
 pythonpath = ["src"]
 filterwarnings = ["error"]
 # Real LLM/voice calls need keys and money: opt in with `uv run pytest -m live`. CI never does.
