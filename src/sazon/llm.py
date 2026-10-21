@@ -79,7 +79,10 @@ class Completion(Envelope):
 
 
 class OpenRouter:
-    def __init__(self, transport: httpx2.BaseTransport | None = None) -> None:
+    def __init__(
+        self, transport: httpx2.BaseTransport | None = None, model: str = MODEL
+    ) -> None:
+        self.model = model  # the evals' judge passes another one
         key = os.environ.get("OPENROUTER_API_KEY")
         if not key:
             raise RuntimeError(
@@ -111,7 +114,7 @@ class OpenRouter:
         self, messages: list[Message], response_format: JsonValue = None
     ) -> str:
         body: dict[str, object] = {
-            "model": MODEL,
+            "model": self.model,
             "messages": messages,
             "reasoning": {"effort": "low"},
             "provider": {

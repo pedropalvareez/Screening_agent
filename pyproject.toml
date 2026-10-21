@@ -50,14 +50,14 @@ select = [
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
-include = ["src", "tests"]
+include = ["src", "tests", "evals"]
 # Escape hatches must name a rule: only "# pyright: ignore[rule]" works (PGH003 enforces the rule).
 enableTypeIgnoreComments = false
 # An escape hatch that no longer suppresses anything must be deleted.
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "evals"]
 pythonpath = ["src"]
 filterwarnings = ["error"]
 # Real LLM/voice calls need keys and money: opt in with `uv run pytest -m live`. CI never does.
