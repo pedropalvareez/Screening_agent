@@ -29,8 +29,10 @@ class Closing(Strict):
     outcome: Outcome
     reason: Reason | None
     flagged: list[Stage]
-    summary: str  # rendered by code from the fields
-    notes: list[str]  # written by the LLM, shown labelled (decision 013)
+    summary: str  # rendered by code from the state
+    # At most one, written by the LLM, shown labelled (decision 013); [] for NONE,
+    # None when the call failed.
+    notes: list[str] | None
 
 
 class PoolConsent(Strict):

@@ -19,6 +19,7 @@ from sazon.templates import (
     AFTER_CLOSE,
     ANSWERS,
     CLOSINGS,
+    GREETING,
     OTHER_LANGUAGE,
     POOL_NO,
     POOL_YES,
@@ -102,7 +103,46 @@ def test_happy_path_qualifies_with_a_summary(agent: Agent, fake: FakeLLM) -> Non
     assert "Full name: Ana López García" in closing.summary
     assert "Zone: Getafe → Madrid (ES)" in closing.summary
     assert closing.summary.endswith("Flagged fields: none")
-    assert closing.notes == ["First note.", "Second note."]
+    assert closing.notes == ["First note."]  # at most one (decision 013)
+
+
+def test_summary_adds_the_chat_facts_code_knows(agent: Agent, fake: FakeLLM) -> None:
+    duration: Step = ("¿Cuánto dura?", said("question", question="duration"))
+    unclear: Step = ("Pues no sé", said())
+    pay: Step = ("¿Cuánto se paga?", said("question", question="other"))
+    insult: Step = ("Qué pesado, bot", said("abusive"))
+    fix: Step = ("No, vivo en Madrid", said(zone="Madrid", confirmed=False))
+    steps = [duration, *STEPS[:2], TOLEDO, unclear, STEPS[2], pay, insult, *STEPS[3:]]
+    conversation_id, _ = chat(agent, fake, *steps, fix, CONFIRMED)
+    assert closed(agent, conversation_id).summary.endswith(
+        "Flagged fields: none\n"
+        "Process questions: duration\n"
+        "Job questions for a recruiter: 1\n"
+        "Corrected answers: zone\n"
+        "Invalid answers: zone 1\n"
+        "Answers naming an uncovered city: 1\n"
+        "Abusive messages: 1"
+    )
+
+
+def test_the_note_sees_today_the_key_data_and_only_the_candidates_messages(
+    agent: Agent, fake: FakeLLM
+) -> None:
+    chat(agent, fake, STEPS[0], ("No tengo carné", said(has_license=False)))
+    prompt = fake.calls[-1][-1]["content"]  # the last call writes the note
+    assert "Today is Monday 2026-10-19." in prompt  # to check "mañana" against it
+    assert "Driving licence: no" in prompt
+    assert "Candidate: No tengo carné" in prompt
+    assert GREETING not in prompt
+    assert PHRASED not in prompt  # what Leo said
+
+
+def test_none_leaves_no_note(agent: Agent, fake: FakeLLM) -> None:
+    conversation_id, _ = chat(agent, fake, STEPS[0])
+    fake.phrased = "NONE"
+    no_licence: Step = ("No tengo carné", said(has_license=False))
+    chat(agent, fake, no_licence, conversation_id=conversation_id)
+    assert closed(agent, conversation_id).notes == []
 
 
 def test_no_licence_disqualifies_on_the_first_answer(
@@ -249,8 +289,8 @@ def test_candidate_text_cannot_close_the_notes_transcript(
         said(has_license=False),
     )
     chat(agent, fake, STEPS[0], forged)
-    notes = fake.calls[-1][-1]["content"]  # the last call writes the summary notes
-    assert notes.count("</transcript>") == 1
+    notes = fake.calls[-1][-1]["content"]  # the last call writes the note
+    assert notes.count("</messages>") == 1
 
 
 def test_switch_to_english_mid_conversation(agent: Agent, fake: FakeLLM) -> None:
@@ -340,7 +380,7 @@ def test_closing_survives_failed_summary_notes(agent: Agent, fake: FakeLLM) -> N
     assert reply.text == say(CLOSINGS["disqualified", "no_license"], "es")
     closing = closed(agent, conversation_id)
     assert "Driving licence: no" in closing.summary
-    assert closing.notes == []
+    assert closing.notes is None  # failed, unlike [] for NONE
 
 
 @pytest.mark.parametrize("question", ["duration", "next_steps", "data_use"])

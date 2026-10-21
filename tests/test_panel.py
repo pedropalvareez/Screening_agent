@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import httpx2
 import pytest
 from fastapi.testclient import TestClient
 
@@ -161,7 +162,8 @@ def test_detail_keeps_the_code_summary_and_the_ai_notes_apart(
     conversation_id = chat(client, fake, START, PAY, *QUALIFIED[1:])
     detail = client.get(f"/panel/candidates/{conversation_id}").json()
     assert detail["summary"].startswith("Outcome: qualified\nFull name: Ana López")
-    assert detail["notes"] == ["First note.", "Second note."]
+    assert detail["summary"].endswith("Job questions for a recruiter: 1")
+    assert detail["notes"] == ["First note."]
     assert detail["questions"] == ["¿Cuánto pagan?"]
     assert detail["fields"]["zone"] == "Getafe"
     assert detail["transcript"][1] == {
@@ -169,6 +171,17 @@ def test_detail_keeps_the_code_summary_and_the_ai_notes_apart(
         "role": "candidate",
         "text": START[0],
     }
+
+
+def test_detail_tells_a_failed_note_from_none(
+    client: TestClient, fake: FakeLLM
+) -> None:
+    fake.phrased = "NONE"  # the first answer closes, so the note is the only call
+    nothing = chat(client, fake, NO_LICENCE)
+    fake.phrased = httpx2.ConnectError("down")
+    failed = chat(client, fake, NO_LICENCE)
+    assert client.get(f"/panel/candidates/{nothing}").json()["notes"] == []
+    assert client.get(f"/panel/candidates/{failed}").json()["notes"] is None
 
 
 def test_status_is_saved_apart_from_the_outcome(

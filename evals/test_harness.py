@@ -4,6 +4,7 @@ is fictional."""
 
 from test_conversations import (
     ES,
+    LABEL,
     Call,
     Exchange,
     Experience,
@@ -58,6 +59,11 @@ def test_naming_skips_pronouns_in_quotes() -> None:
     assert naming(notes, "Lucía Pérez Gómez") == []
 
 
+def test_label_catches_labels_not_prose() -> None:
+    notes = ["Note 1: The", "Note: The", "2. The", "Note that the", "Note the typo"]
+    assert [bool(LABEL.match(note)) for note in notes] == [True] * 3 + [False] * 2
+
+
 def test_percentile_takes_the_nearest_rank() -> None:
     values = [4.0, 1.0, 3.0, 2.0]
     assert percentile(values, 0.5) == 2.0  # a value in the list, not 2.5
@@ -103,7 +109,9 @@ def test_metrics_counts_and_lists_failures() -> None:
         ],
         notes=["The candidate seems motivated."],
         named=[],
-        notes_verdict=NotesVerdict(language="en", assesses=True, unsupported=False),
+        notes_verdict=NotesVerdict(
+            language="en", assesses=True, unsupported=False, misses=False
+        ),
     )
 
     report = metrics([run])
@@ -121,4 +129,39 @@ def test_metrics_counts_and_lists_failures() -> None:
         "  happy_es #0 turn 3: no usable extraction of 'Lucía'",
         "  happy_es #0 notes: assesses the candidate:"
         " ['The candidate seems motivated.']",
+    ]
+
+
+def test_metrics_counts_misses_over_every_closing_and_the_rest_over_notes() -> None:
+    misses = NotesVerdict(language="es", assesses=False, unsupported=False, misses=True)
+    silent = Run(
+        label="language_switch #0",
+        scripted="qualified",
+        outcome="qualified",
+        exchanges=[],
+        notes=[],  # NONE
+        named=[],
+        notes_verdict=misses,
+    )
+    labelled = silent.model_copy(
+        update={
+            "label": "no_license #0",
+            "notes": ["Note 1: The candidate is still taking the test."],
+            "notes_verdict": misses.model_copy(
+                update={"language": "en", "misses": False}
+            ),
+        }
+    )
+
+    report = metrics([silent, labelled])
+
+    assert "AI notes: 1 of 2 judged closings, NONE in the rest" in report
+    assert "  labelled: 1/1 (100%)" in report
+    assert "  not in English: 0/1 (0%)" in report  # NONE has no language
+    assert "  misses what the fields do not hold: 1/2 (50%)" in report
+    assert report[report.index("Failures: 2") :] == [
+        "Failures: 2",
+        "  language_switch #0 notes: misses what the fields do not hold: []",
+        "  no_license #0 notes: labelled:"
+        " ['Note 1: The candidate is still taking the test.']",
     ]

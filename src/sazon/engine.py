@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, Field, TypeAdapter
 
-from sazon.schema import Extraction, ScreeningFields, Strict
+from sazon.schema import Extraction, Question, ScreeningFields, Strict
 
 Stage = Literal[
     "greeting",
@@ -98,6 +98,10 @@ class Screening(Strict):
     abusive_messages: int = 0
     uncovered_zones: int = 0  # answers naming a city outside the service area
     invalid_answers: dict[Stage, int] = Field(default_factory=dict[Stage, int])
+    # For the summary (013): valid answers a later message changed, in stage order,
+    # and the topic of every question asked.
+    corrected: list[Stage] = Field(default_factory=list[Stage])
+    topics: list[Question] = Field(default_factory=list[Question])
 
 
 def missing(fields: ScreeningFields, stage: Stage) -> bool:
@@ -186,6 +190,19 @@ def apply(
         and not uncovered
     ):
         invalid_answers[asked] = invalid_answers.get(asked, 0) + 1
+    corrected: list[Stage] = [
+        s
+        for s, name in FIELD_STAGES.items()
+        if s in state.corrected
+        or (
+            name in given
+            and not missing(state.fields, s)
+            and getattr(fields, name) != getattr(state.fields, name)
+        )
+    ]
+    question: list[Question] = (
+        [] if extraction.question is None else [extraction.question]
+    )
     return Screening(
         last_message_at=now,
         fields=fields,
@@ -198,4 +215,6 @@ def apply(
         abusive_messages=state.abusive_messages + (extraction.intent == "abusive"),
         uncovered_zones=state.uncovered_zones + uncovered,
         invalid_answers=invalid_answers,
+        corrected=corrected,
+        topics=[*state.topics, *question],
     )

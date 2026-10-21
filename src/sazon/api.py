@@ -125,8 +125,8 @@ class Candidate(Strict):
 
 class CandidateDetail(Strict):
     candidate: Candidate
-    summary: str  # rendered by code from the fields
-    notes: list[str]  # AI-generated (decision 013)
+    summary: str  # rendered by code from the state
+    notes: list[str] | None  # AI-generated (decision 013); None if the call failed
     fields: ScreeningFields
     questions: list[str]  # job questions for a recruiter (019)
     pool: PoolConsent | None  # 018

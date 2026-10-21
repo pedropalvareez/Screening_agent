@@ -227,12 +227,15 @@ function show(detail, focus) {
   $("status").value = candidate.status;
   $("reopen").hidden = candidate.outcome !== "disqualified";
   $("summary").textContent = detail.summary;
-  $("notes").replaceChildren(...detail.notes.map((note) => el("li", "", note)));
+  const notes = detail.notes ?? [];
+  $("notes").replaceChildren(...notes.map((note) => el("li", "", note)));
   $("no-notes").textContent =
     candidate.outcome === "abandoned"
-      ? "None yet: notes are written when a screening closes."
-      : "Unavailable: the model call failed when the screening closed.";
-  $("no-notes").hidden = detail.notes.length > 0;
+      ? "None yet: the note is written when a screening closes."
+      : detail.notes === null
+        ? "Unavailable: the model call failed when the screening closed."
+        : "None: the candidate wrote nothing the fields do not hold.";
+  $("no-notes").hidden = notes.length > 0;
   $("questions").replaceChildren(...detail.questions.map((question) => el("li", "", question)));
   $("no-questions").hidden = detail.questions.length > 0;
   renderJson(detail.fields, candidate.flagged);

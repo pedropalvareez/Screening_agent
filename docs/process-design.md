@@ -89,4 +89,4 @@ The screening outcome is set by code; the hiring decision stays with a recruiter
 
 Qualified candidates are not told "a recruiter will call you": that would bring back the missed-call problem for exactly the candidates we want.
 
-The recruiter's work queue holds QUALIFIED and NEEDS_REVIEW, filterable by outcome and zone. Each candidate has a summary (key data rendered by code from the validated fields, plus 2–3 AI-labelled notes that describe facts and never assess the candidate), the structured JSON, the candidate's questions and the full transcript.
+The recruiter's work queue holds QUALIFIED and NEEDS_REVIEW, filterable by outcome and zone. Each candidate has a summary (key data and chat facts rendered by code from the state, plus at most one AI-labelled note on what the candidate wrote that the fields do not hold, which describes facts and never assesses the candidate), the structured JSON, the candidate's questions and the full transcript.

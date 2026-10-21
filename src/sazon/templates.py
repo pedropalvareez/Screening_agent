@@ -129,12 +129,27 @@ def key_data(fields: ScreeningFields) -> str:
 
 
 def summary(state: Screening, outcome: Outcome, reason: Reason | None) -> str:
-    """The code-rendered part of the summary; the LLM's notes are kept apart, so
-    the panel can label them (decision 013)."""
+    """The code-rendered part of the summary: the key data, then what the state
+    shows about the chat, a line only for what happened. The LLM's note is kept
+    apart, so the panel can label it (decision 013)."""
+    invalid = [
+        f"{s} {n}" for s in engine.FIELD_STAGES if (n := state.invalid_answers.get(s))
+    ]
+    chat = {
+        "Process questions": ", ".join(
+            t for t in dict.fromkeys(state.topics) if t != "other"
+        ),
+        "Job questions for a recruiter": state.topics.count("other"),
+        "Corrected answers": ", ".join(state.corrected),
+        "Invalid answers": ", ".join(invalid),
+        "Answers naming an uncovered city": state.uncovered_zones,
+        "Abusive messages": state.abusive_messages,
+    }
     return "\n".join(
         [
             f"Outcome: {outcome}" + (f" ({reason})" if reason else ""),
             key_data(state.fields),
             f"Flagged fields: {', '.join(engine.flagged(state)) or 'none'}",
+            *(f"{label}: {value}" for label, value in chat.items() if value),
         ]
     )
