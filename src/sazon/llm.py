@@ -1,20 +1,31 @@
 """OpenRouter client (decision 002): the LLM extracts and phrases, code decides.
+Voice goes through the same client (decision 003): speech-to-text and back.
 
 turn.py depends on the LLM protocol, so tests pass a fake instead of OpenRouter.
 """
 
+import base64
 import os
+import re
 import time
 from typing import Literal, Protocol, TypedDict
 
 import httpx2
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 
-from sazon.schema import Extraction, parse_extraction
+from sazon.schema import Extraction, Language, parse_extraction
 
 MODEL = "anthropic/claude-haiku-5.5"
+STT_MODEL = "elevenlabs/scribe-v2"
+TTS_MODEL = "microsoft/mai-voice-2.1-flash"
+# Grant in both languages; the locale fixes the synthesis language. MAI has no
+# male es-ES voice, so Spain hears es-MX (decision 003).
+SPANISH_VOICE = "es-MX-Grant:MAI-Voice-2.1-Flash"
+ENGLISH_VOICE = "en-US-Grant:MAI-Voice-2.1-Flash"
+# Scribe tags sounds, not words: "[click]" for Leo's echo, "(laughter)".
+SOUNDS = re.compile(r"\[[^\]]*\]|\([^)]*\)")
 # Observed 1.7-8.6 s per call. OpenRouter sends keep-alive whitespace while it
-# waits, so a read timeout alone never fires: complete() also checks a deadline
+# waits, so a read timeout alone never fires: post() also checks a deadline
 # after every read, and one attempt ends within 2 x TIMEOUT.
 TIMEOUT = 15.0
 FAILURES = (httpx2.HTTPError, ValidationError)
@@ -29,6 +40,10 @@ class LLM(Protocol):
     def extract(self, messages: list[Message]) -> Extraction: ...
 
     def phrase(self, messages: list[Message]) -> str: ...
+
+    def transcribe(self, audio: bytes, format: str) -> str: ...
+
+    def speak(self, text: str, language: Language) -> bytes: ...
 
 
 def for_model(node: JsonValue) -> JsonValue:
@@ -78,6 +93,10 @@ class Completion(Envelope):
     choices: list[Choice] = Field(min_length=1)
 
 
+class Transcription(Envelope):
+    text: str  # "" when the audio held no speech
+
+
 class OpenRouter:
     def __init__(
         self, transport: httpx2.BaseTransport | None = None, model: str = MODEL
@@ -110,6 +129,36 @@ class OpenRouter:
         except FAILURES:
             return self.complete(messages)
 
+    def transcribe(self, audio: bytes, format: str) -> str:
+        """The words the candidate said, "" for none. One retry, then raises
+        (decision 006)."""
+        body: dict[str, object] = {
+            "model": STT_MODEL,
+            "input_audio": {"data": base64.b64encode(audio).decode(), "format": format},
+            "provider": {"data_collection": "deny"},  # decision 014
+        }
+        try:
+            heard = self.post("/audio/transcriptions", body)
+            text = Transcription.model_validate_json(heard).text
+        except FAILURES:
+            heard = self.post("/audio/transcriptions", body)
+            text = Transcription.model_validate_json(heard).text
+        return SOUNDS.sub("", text).strip()
+
+    def speak(self, text: str, language: Language) -> bytes:
+        """MP3 of text in the conversation's language. One retry, then raises."""
+        body: dict[str, object] = {
+            "model": TTS_MODEL,
+            "input": text,
+            "voice": ENGLISH_VOICE if language == "en" else SPANISH_VOICE,
+            "response_format": "mp3",
+            "provider": {"data_collection": "deny"},  # decision 014
+        }
+        try:
+            return self.post("/audio/speech", body)
+        except FAILURES:
+            return self.post("/audio/speech", body)
+
     def complete(
         self, messages: list[Message], response_format: JsonValue = None
     ) -> str:
@@ -128,14 +177,20 @@ class OpenRouter:
         }
         if response_format is not None:
             body["response_format"] = response_format
+        # Some errors arrive as 200 with an "error" body: Completion rejects them.
+        completion = Completion.model_validate_json(
+            self.post("/chat/completions", body)
+        )
+        return completion.choices[0].message.content
+
+    def post(self, path: str, body: dict[str, object]) -> bytes:
+        """One attempt, over within 2 x TIMEOUT even while keep-alives arrive."""
         deadline = time.monotonic() + TIMEOUT
         content = b""
-        with self.client.stream("POST", "/chat/completions", json=body) as response:
+        with self.client.stream("POST", path, json=body) as response:
             response.raise_for_status()
             for chunk in response.iter_bytes():
                 if time.monotonic() > deadline:
                     raise httpx2.ReadTimeout("deadline", request=response.request)
                 content += chunk
-        # Some errors arrive as 200 with an "error" body: Completion rejects them.
-        completion = Completion.model_validate_json(content)
-        return completion.choices[0].message.content
+        return content

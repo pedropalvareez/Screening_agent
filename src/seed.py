@@ -40,6 +40,12 @@ class Script:
     def phrase(self, messages: list[Message]) -> str:
         return next(self.phrases)
 
+    def transcribe(self, audio: bytes, format: str) -> str:
+        raise NotImplementedError("the seed types every message")
+
+    def speak(self, text: str, language: Language) -> bytes:
+        raise NotImplementedError("the seed types every message")
+
 
 def said(
     language: Language = "es", intent: Intent = "answer", **fields: object

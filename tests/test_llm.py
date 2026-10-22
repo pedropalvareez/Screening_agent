@@ -1,3 +1,4 @@
+import base64
 import time
 from collections.abc import Iterator
 
@@ -6,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from sazon.llm import LLM, Message, OpenRouter
-from sazon.schema import JSON_OBJECT, Extraction
+from sazon.schema import JSON_OBJECT, Extraction, Language
 
 VALID = '{"has_license": true, "intent": "answer", "language": "es"}'
 ASK: list[Message] = [{"role": "user", "content": "Tengo carnet."}]
@@ -124,6 +125,63 @@ def test_phrase_returns_text_without_schema(monkeypatch: pytest.MonkeyPatch) -> 
     assert "response_format" not in JSON_OBJECT.validate_json(sent[1].content)
 
 
+def test_transcribe_sends_the_audio_to_scribe(monkeypatch: pytest.MonkeyPatch) -> None:
+    usage = {"seconds": 1.2, "cost": 0.0001}
+    heard = httpx2.Response(200, json={"text": "Sí, tengo carné", "usage": usage})
+    llm, sent = openrouter(monkeypatch, heard)
+    assert llm.transcribe(b"webm bytes", "webm") == "Sí, tengo carné"
+    assert sent[0].url.path == "/api/v1/audio/transcriptions"
+    audio = base64.b64encode(b"webm bytes").decode()
+    assert JSON_OBJECT.validate_json(sent[0].content) == {
+        "model": "elevenlabs/scribe-v2",
+        "input_audio": {"data": audio, "format": "webm"},
+        "provider": {"data_collection": "deny"},
+    }
+
+
+@pytest.mark.parametrize(
+    ("text", "words"),
+    [("[click]", ""), ("(risas) Sí, tengo carné.", "Sí, tengo carné.")],
+    ids=["Leo's echo", "laughter"],
+)
+def test_transcribe_keeps_words_not_sounds(
+    monkeypatch: pytest.MonkeyPatch, text: str, words: str
+) -> None:
+    llm, _ = openrouter(monkeypatch, httpx2.Response(200, json={"text": text}))
+    assert llm.transcribe(b"webm bytes", "webm") == words
+
+
+def test_transcribe_retries_once_then_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    error = httpx2.Response(200, json={"error": {"message": "Provider down"}})
+    llm, sent = openrouter(monkeypatch, error, httpx2.Response(500))
+    with pytest.raises(httpx2.HTTPStatusError):
+        llm.transcribe(b"webm bytes", "webm")
+    assert len(sent) == 2
+
+
+@pytest.mark.parametrize(
+    ("language", "voice"),
+    [
+        ("es", "es-MX-Grant:MAI-Voice-2.1-Flash"),
+        ("en", "en-US-Grant:MAI-Voice-2.1-Flash"),
+    ],
+)
+def test_speak_uses_grant_in_the_conversations_language(
+    monkeypatch: pytest.MonkeyPatch, language: Language, voice: str
+) -> None:
+    mp3 = httpx2.Response(200, content=b"mp3 bytes")
+    llm, sent = openrouter(monkeypatch, httpx2.Response(500), mp3)
+    assert llm.speak("¿Tienes carné?", language) == b"mp3 bytes"
+    assert sent[1].url.path == "/api/v1/audio/speech"
+    assert JSON_OBJECT.validate_json(sent[1].content) == {
+        "model": "microsoft/mai-voice-2.1-flash",
+        "input": "¿Tienes carné?",
+        "voice": voice,
+        "response_format": "mp3",
+        "provider": {"data_collection": "deny"},
+    }
+
+
 @pytest.mark.live
 def test_live_extraction() -> None:
     llm = OpenRouter()
@@ -146,3 +204,14 @@ def test_live_extraction() -> None:
     assert extraction.has_license is True
     assert extraction.zone == "Getafe"
     assert (extraction.intent, extraction.language) == ("answer", "es")
+
+
+@pytest.mark.live
+def test_live_voice_round_trip() -> None:
+    """Leo's voice back through speech-to-text. The browser records webm or m4a,
+    which the 003 spike checked; this checks the client against the service."""
+    llm = OpenRouter()
+    with llm.client:
+        audio = llm.speak("Tengo carné de conducir y vivo en Sevilla.", "es")
+        heard = llm.transcribe(audio, "mp3")
+    assert "sevilla" in heard.casefold()

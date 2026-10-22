@@ -3,14 +3,17 @@
 from collections.abc import Iterator
 from pathlib import Path
 
+import httpx2
 import pytest
 from fastapi.testclient import TestClient
 
 from fakes import PHRASED, FakeLLM, said
 from sazon import storage
-from sazon.api import app, get_agent
+from sazon.api import MAX_AUDIO, app, get_agent
 from sazon.templates import GREETING
 from sazon.turn import CITIES, Agent
+
+WEBM = {"Content-Type": "audio/webm;codecs=opus"}  # what Chrome records
 
 
 @pytest.fixture
@@ -83,6 +86,86 @@ def test_invalid_message_is_rejected(
     conversation_id = client.post("/conversations").json()["id"]
     url = f"/conversations/{conversation_id}/messages"
     assert client.post(url, json=body).status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("content_type", "audio_format"),
+    [("audio/webm;codecs=opus", "webm"), ("audio/mp4", "m4a")],
+    ids=["Chrome", "Safari"],
+)
+def test_transcription_returns_the_text_and_stores_nothing(
+    client: TestClient, fake: FakeLLM, content_type: str, audio_format: str
+) -> None:
+    url = f"/conversations/{client.post('/conversations').json()['id']}"
+    headers = {"Content-Type": content_type}
+    heard = client.post(f"{url}/transcription", content=b"audio", headers=headers)
+    assert heard.json() == {"text": "Sí, tengo carné"}
+    assert fake.recordings == [(b"audio", audio_format)]
+    # The browser sends the text as a message: no turn ran.
+    assert len(client.get(url).json()["transcript"]) == 1
+
+
+def test_transcription_caps_the_size_and_the_formats(
+    client: TestClient, fake: FakeLLM
+) -> None:
+    conversation_id = client.post("/conversations").json()["id"]
+    url = f"/conversations/{conversation_id}/transcription"
+    full = client.post(url, content=b"0" * MAX_AUDIO, headers=WEBM)
+    assert full.status_code == 200
+    too_long = client.post(url, content=b"0" * (MAX_AUDIO + 1), headers=WEBM)
+    assert too_long.status_code == 413
+    ogg = client.post(url, content=b"audio", headers={"Content-Type": "audio/ogg"})
+    assert ogg.status_code == 415
+    assert len(fake.recordings) == 1
+
+
+def test_speech_says_the_latest_reply_without_links_or_emoji(
+    client: TestClient, fake: FakeLLM
+) -> None:
+    url = f"/conversations/{client.post('/conversations').json()['id']}"
+    spoken = client.get(f"{url}/speech")
+    assert spoken.content == b"fake mp3"
+    assert spoken.headers["content-type"] == "audio/mpeg"
+    assert spoken.headers["cache-control"] == "no-store"
+    # The sentence with the privacy link and the parentheses stay on screen.
+    assert fake.spoken == [
+        (
+            "¡Hola! Soy Leo, el asistente virtual de Grupo Sazón. Te haré unas"
+            " preguntas sobre tu solicitud de repartidor: unos 2 minutos. ¿Empezamos?",
+            "es",
+        )
+    ]
+    fake.extractions["Yes, let's start"] = said(language="en")
+    fake.phrased = "Great 👍 Do you have a driving licence?"
+    client.post(f"{url}/messages", json={"text": "Yes, let's start"})
+    client.get(f"{url}/speech")
+    text, language = fake.spoken[-1]
+    assert language == "en"
+    assert "👍" not in text and text.endswith("Do you have a driving licence?")
+
+
+def test_voice_failures_leave_the_chat_as_it_was(
+    client: TestClient, fake: FakeLLM
+) -> None:
+    url = f"/conversations/{client.post('/conversations').json()['id']}"
+    fake.heard = httpx2.ConnectError("down")
+    heard = client.post(f"{url}/transcription", content=b"audio", headers=WEBM)
+    assert heard.status_code == 502
+    fake.extractions["Sí"] = said()
+    reply = client.post(f"{url}/messages", json={"text": "Sí"}).json()
+    fake.audio = httpx2.ReadTimeout("deadline")
+    assert client.get(f"{url}/speech").status_code == 502
+    resumed = client.get(url).json()
+    assert resumed["reply"] == reply  # saved before the speech failed
+    assert [line["text"] for line in resumed["transcript"][1:]] == ["Sí", PHRASED]
+
+
+def test_voice_needs_a_known_conversation(client: TestClient, fake: FakeLLM) -> None:
+    url = "/conversations/nope"
+    heard = client.post(f"{url}/transcription", content=b"audio", headers=WEBM)
+    assert heard.status_code == 404
+    assert client.get(f"{url}/speech").status_code == 404
+    assert not fake.recordings and not fake.spoken
 
 
 def test_app_fails_at_startup_without_an_api_key(
