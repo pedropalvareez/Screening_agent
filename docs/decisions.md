@@ -172,6 +172,7 @@ For the client:
 - Are minimum age or work permit requirements, and so knockouts?
 - How do candidates apply today, and do we get their phone number?
 - Average screening call length, and does the 80% figure include unanswered calls (017)?
+- What NEEDS_REVIEW share can recruiters absorb? The 10% target in 017 is our assumption.
 - Is there an ATS to export candidates to?
 - Are recruiters split by country?
 
