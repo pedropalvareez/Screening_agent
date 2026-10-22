@@ -422,6 +422,78 @@ mark {
 .line p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .line.agent p { color: var(--muted); }
 
+/* Metrics: one hero figure, a row of stat tiles, three small tables. Numbers in
+   ink, never in a series color: there is no chart to key them to. */
+#metrics {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.card {
+  padding: 14px 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.card h3 { margin-top: 0; }
+.card .caption { margin: 8px 0 0; }
+
+.hero {
+  margin: 6px 0 0;
+  font: 600 48px/1.1 var(--font);
+  letter-spacing: -0.02em;
+}
+
+.value {
+  margin: 6px 0 0;
+  font: 600 28px/1.2 var(--font);
+  letter-spacing: -0.01em;
+}
+
+.detail { margin: 2px 0 0; color: var(--muted); }
+
+/* Six tiles: 3 × 2, 2 × 3 or one column, never a row with an orphan. */
+#tiles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 560px) { #tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 960px) { #tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th, td {
+  padding: 7px 0 7px 16px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 400;
+  text-align: right;
+}
+
+th:first-child, td:first-child { padding-left: 0; }
+
+th[scope="row"], thead th:first-child, td.none { text-align: left; }
+thead th { color: var(--muted); font-size: 13px; }
+td.none { color: var(--muted); }
+
 @media (hover: hover) and (pointer: fine) {
   button:hover { border-color: var(--muted); }
   #views button:hover:not([aria-pressed="true"]) { border-color: var(--line); }

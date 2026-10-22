@@ -20,11 +20,12 @@
   </header>
 
   <div class="toolbar">
-    <nav id="views" aria-label="Candidate lists">
+    <nav id="views" aria-label="Views">
       <button type="button" data-view="queue">Queue <span class="count"></span><span class="late"></span></button>
       <button type="button" data-view="disqualified">Disqualified <span class="count"></span><span class="late"></span></button>
       <button type="button" data-view="withdrawn">Withdrawn <span class="count"></span><span class="late"></span></button>
       <button type="button" data-view="abandoned">Abandoned <span class="count"></span><span class="late"></span></button>
+      <button type="button" data-view="metrics">Metrics</button>
     </nav>
     <label id="outcome-filter">Outcome
       <select id="outcome">
@@ -33,12 +34,53 @@
         <option value="needs_review">Needs review</option>
       </select>
     </label>
-    <label>Zone
+    <label id="zone-filter">Zone
       <select id="zone"></select>
     </label>
   </div>
 
   <p id="error" role="alert" hidden></p>
+
+  <section id="metrics" aria-labelledby="metrics-title" hidden>
+    <h2 id="metrics-title" class="visually-hidden">Metrics</h2>
+    <p class="caption">Every stored conversation except those still screening, counted by code on each load. Each rate shows the count behind it: small numbers swing.</p>
+
+    <div class="card">
+      <h3>Recruiter minutes per qualified candidate</h3>
+      <p id="hero" class="hero"></p>
+      <p id="hero-detail" class="detail"></p>
+      <p id="hero-caption" class="caption"></p>
+    </div>
+
+    <ul id="tiles"></ul>
+
+    <div class="tables">
+      <div class="card">
+        <h3 id="dropped-off-title">Drop-off stage</h3>
+        <p class="caption">Withdrawn or silent for 72 h after replying, by the question they left at.</p>
+        <table aria-labelledby="dropped-off-title">
+          <thead><tr><th scope="col">Question</th><th scope="col">Candidates</th></tr></thead>
+          <tbody id="dropped-off"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 id="by-field-title">Needs review by flagged field</h3>
+        <p class="caption">Of the qualified and needs review: one candidate can have several fields flagged.</p>
+        <table aria-labelledby="by-field-title">
+          <thead><tr><th scope="col">Field</th><th scope="col">Candidates</th><th scope="col">Share</th></tr></thead>
+          <tbody id="by-field"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 id="by-language-title">Needs review by language</h3>
+        <p class="caption">Each conversation counts in its last language, to check whether one language gets flagged more.</p>
+        <table aria-labelledby="by-language-title">
+          <thead><tr><th scope="col">Language</th><th scope="col">Candidates</th><th scope="col">Share</th></tr></thead>
+          <tbody id="by-language"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 
   <main>
     <section id="list" aria-label="Candidates">
