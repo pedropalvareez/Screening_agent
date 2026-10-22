@@ -9,8 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal, get_args
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import FileResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import AwareDatetime, StringConstraints
@@ -27,11 +27,18 @@ from sazon.turn import (
     connect,
     latest_reply,
     lock,
+    speech,
     start,
+    transcribe,
     turn,
 )
 
 WEB = Path(__file__).parent / "web"
+# Chrome records speech at about 90 kbit/s, so about three minutes: more than a
+# 1000-character message holds.
+MAX_AUDIO = 2_000_000
+# What browsers record: webm/opus (Chrome, Firefox) and mp4/aac (Safari).
+AUDIO_FORMATS = {"audio/webm": "webm", "audio/mp4": "m4a"}
 
 
 @functools.cache
@@ -139,6 +146,20 @@ class StatusChange(Strict):
     status: RecruiterStatus
 
 
+class Transcript(Strict):
+    text: str  # "" when the recording held no speech
+
+
+async def recording(request: Request) -> bytes:
+    """The raw audio body (no python-multipart), read only up to MAX_AUDIO."""
+    audio = b""
+    async for chunk in request.stream():
+        audio += chunk
+        if len(audio) > MAX_AUDIO:
+            raise HTTPException(413, "recording too long")
+    return audio
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -166,6 +187,39 @@ def send_message(
         return turn(agent, conversation_id, message.text, datetime.now(UTC))
     except UnknownConversation:
         raise HTTPException(404, "conversation not found") from None
+
+
+@app.post("/conversations/{conversation_id}/transcription")
+def transcription(
+    conversation_id: str,
+    content_type: Annotated[str, Header()],
+    audio: Annotated[bytes, Depends(recording)],
+    agent: AgentDep,
+) -> Transcript:
+    """Speech to text only: the browser sends the text as a message (003)."""
+    audio_format = AUDIO_FORMATS.get(content_type.partition(";")[0].strip())
+    if audio_format is None:
+        raise HTTPException(415, "send audio/webm or audio/mp4")
+    try:
+        text = transcribe(agent, conversation_id, audio, audio_format)
+    except UnknownConversation:
+        raise HTTPException(404, "conversation not found") from None
+    if text is None:
+        raise HTTPException(502, "speech-to-text failed")
+    return Transcript(text=text)
+
+
+@app.get("/conversations/{conversation_id}/speech")
+def latest_reply_speech(conversation_id: str, agent: AgentDep) -> Response:
+    try:
+        audio = speech(agent, conversation_id)
+    except UnknownConversation:
+        raise HTTPException(404, "conversation not found") from None
+    if audio is None:
+        raise HTTPException(502, "text-to-speech failed")
+    # Every reply has this URL: a cached copy would be an earlier reply.
+    headers = {"Cache-Control": "no-store"}
+    return Response(audio, media_type="audio/mpeg", headers=headers)
 
 
 def outcome(c: Conversation, now: datetime) -> Outcome | None:

@@ -23,9 +23,13 @@
   <main id="log" role="log" aria-live="polite" aria-labelledby="title"></main>
   <footer>
     <div id="options"></div>
+    <p id="voice-status" role="status"></p>
     <form id="composer">
       <label for="message" class="visually-hidden" id="message-label">Mensaje</label>
       <textarea id="message" rows="1" maxlength="1000" enterkeyhint="send" placeholder="Escribe un mensaje" required></textarea>
+      <button type="button" id="talk" aria-pressed="false" aria-label="Hablar con Leo" title="Hablar con Leo">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" fill="currentColor"/></svg>
+      </button>
       <button type="submit" id="send" aria-label="Enviar">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor"/></svg>
       </button>

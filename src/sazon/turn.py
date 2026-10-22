@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import threading
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -46,6 +47,9 @@ REDACTIONS = {
 # shortcut: in-process locks, so two quick messages from one candidate run one
 # after the other; a second worker process needs the lock in the database.
 LOCKS = [threading.Lock() for _ in range(64)]
+# Shown in the chat, never spoken: a sentence with a link ("Privacidad: https://…")
+# and text in parentheses.
+UNSPOKEN = re.compile(r"[^.!?\n]*https?://\S+|\s*\([^)]*\)")
 
 
 class Reply(Strict):
@@ -107,6 +111,39 @@ def turn(agent: Agent, conversation_id: str, message: str, now: datetime) -> Rep
         conversation.transcript.append(Line(at=now, role="agent", text=said))
         storage.save(agent.db, conversation)
     return latest_reply(conversation)
+
+
+def transcribe(
+    agent: Agent, conversation_id: str, audio: bytes, format: str
+) -> str | None:
+    """What the candidate said, for the browser to send as a message: the audio
+    is never stored (decision 003). None if the model failed twice."""
+    conversation = storage.load(agent.db, conversation_id)
+    if conversation is None:
+        raise UnknownConversation(conversation_id)
+    try:
+        return agent.llm.transcribe(audio, format)
+    except FAILURES as error:
+        log.warning(
+            "transcription failed in %s: %s", tag(conversation), type(error).__name__
+        )
+        return None
+
+
+def speech(agent: Agent, conversation_id: str) -> bytes | None:
+    """The latest stored reply as audio, never text from the caller, so this is
+    no TTS proxy (decision 003). Emoji stay in the chat too: the voice reads 🙌
+    out loud. None if the model failed twice."""
+    conversation = storage.load(agent.db, conversation_id)
+    if conversation is None:
+        raise UnknownConversation(conversation_id)
+    text = UNSPOKEN.sub("", last_said(conversation))
+    spoken = "".join(ch for ch in text if unicodedata.category(ch) != "So")
+    try:
+        return agent.llm.speak(spoken, conversation.language)
+    except FAILURES as error:
+        log.warning("speech failed in %s: %s", tag(conversation), type(error).__name__)
+        return None
 
 
 def lock(conversation_id: str) -> threading.Lock:
