@@ -17,6 +17,7 @@ from pydantic import AwareDatetime, StringConstraints
 
 from sazon import engine, storage, templates
 from sazon.engine import ZONES, Outcome, Reason, RecruiterStatus, Stage
+from sazon.metrics import Metrics, measure
 from sazon.schema import Language, ScreeningFields, Strict
 from sazon.storage import Conversation, Line, PoolConsent
 from sazon.turn import (
@@ -247,6 +248,11 @@ def candidates(agent: AgentDep) -> list[Candidate]:
 @panel.get("/candidates/{conversation_id}")
 def candidate_detail(conversation_id: str, agent: AgentDep) -> CandidateDetail:
     return detail(*screened(agent, conversation_id))
+
+
+@panel.get("/metrics")
+def metrics(agent: AgentDep) -> Metrics:
+    return measure(storage.load_all(agent.db), datetime.now(UTC))
 
 
 @panel.post("/candidates/{conversation_id}/status", dependencies=[Depends(json_only)])

@@ -9,10 +9,12 @@ import httpx2
 import pytest
 from fastapi.testclient import TestClient
 
+import seed
 from fakes import FakeLLM, said
 from sazon import api, storage
 from sazon.api import app, get_agent
 from sazon.llm import Message
+from sazon.metrics import measure
 from sazon.schema import Extraction
 from sazon.turn import Agent, start, turn
 
@@ -239,6 +241,16 @@ def test_reopen_sends_a_disqualified_candidate_to_review_once(
     )
     rows = client.get("/panel/candidates").json()
     assert [row["outcome"] for row in rows] == ["qualified", "needs_review"]
+
+
+def test_metrics_cover_every_stored_conversation(
+    client: TestClient, agent: Agent
+) -> None:
+    seed.seed(agent.db, datetime.now(UTC))
+    shown = client.get("/panel/metrics").json()
+    expected = measure(storage.load_all(agent.db), datetime.now(UTC))
+    assert shown == expected.model_dump(mode="json")
+    assert shown["completed"] == {"count": 14, "total": 18}
 
 
 @pytest.mark.parametrize(
