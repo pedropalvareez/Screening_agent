@@ -114,13 +114,17 @@ function fillZones() {
 
 function renderViews() {
   for (const button of $("views").querySelectorAll("button")) {
+    button.setAttribute("aria-pressed", String(button.dataset.view === view));
+    if (!(button.dataset.view in VIEWS)) continue; // Metrics: no count
     const inView = rows.filter((row) => VIEWS[button.dataset.view].includes(row.outcome));
     const late = inView.filter((row) => row.wrote_after_close).length;
-    button.setAttribute("aria-pressed", String(button.dataset.view === view));
     button.querySelector(".count").textContent = inView.length.toLocaleString("en-GB");
     button.querySelector(".late").textContent = late ? `${late} wrote after close` : "";
   }
   $("outcome-filter").hidden = view !== "queue";
+  $("zone-filter").hidden = view === "metrics";
+  $("metrics").hidden = view !== "metrics";
+  document.querySelector("main").hidden = view === "metrics";
 }
 
 function rowItem(row) {
@@ -143,6 +147,7 @@ function rowItem(row) {
 }
 
 function renderList() {
+  if (!(view in VIEWS)) return;
   const outcome = view === "queue" ? $("outcome").value : "";
   const shown = rows.filter(
     (row) =>
@@ -243,6 +248,74 @@ function show(detail, focus) {
   if (focus) $("detail-name").focus();
 }
 
+// Every metric is counted by the server (metrics.py); this only formats it.
+const percent = (rate) => (rate.total ? `${Math.round((100 * rate.count) / rate.total)}%` : "—");
+const share = (rate) => `${rate.count} of ${rate.total}`;
+const minutes = (value) => (value === null ? "—" : `${Math.round(value)} min`);
+
+function tile(label, value, detail, definition) {
+  const item = el("li", "card");
+  item.append(el("h3", "", label), el("p", "value", value), el("p", "detail", detail), el("p", "caption", definition));
+  return item;
+}
+
+// One row per entry, the first cell its header; "None." when there is none.
+function fillTable(body, entries) {
+  const line = (cells) => {
+    const row = el("tr");
+    const head = el("th", "", cells[0]);
+    head.scope = "row";
+    row.append(head, ...cells.slice(1).map((cell) => el("td", "", cell)));
+    return row;
+  };
+  const none = el("td", "none", "None.");
+  none.colSpan = body.parentElement.tHead.rows[0].cells.length;
+  const empty = el("tr");
+  empty.append(none);
+  body.replaceChildren(...(entries.length ? entries.map(line) : [empty]));
+}
+
+function renderMetrics(m) {
+  const calls = Math.round(m.baseline_minutes / m.minutes_per_call);
+  $("hero").textContent = minutes(m.minutes_per_qualified);
+  $("hero-detail").textContent =
+    m.minutes_per_qualified === null ? "No qualified candidates yet." : `Today about ${minutes(m.baseline_minutes)}.`;
+  $("hero-caption").textContent =
+    `Today: about ${calls} calls per qualified, as 80% of recruiter time goes to the unqualified (017). ` +
+    "With the agent: one call per candidate in the queue (qualified, needs review, reopened), per qualified. " +
+    `A call counts as ${minutes(m.minutes_per_call)}, an assumption (017).`;
+  const median = m.median_minutes === null ? "—" : `${m.median_minutes.toFixed(1)} min`;
+  $("tiles").replaceChildren(
+    tile("Completion rate", percent(m.completed), `${share(m.completed)} who replied`,
+      "Ended in a decision: qualified, needs review or disqualified."),
+    tile("Median duration", median, `${m.needs_review.total} who finished`,
+      "From the candidate's first message to the close, for the qualified and needs review."),
+    tile("Needs review", percent(m.needs_review), `${share(m.needs_review)} who finished`,
+      "Of the qualified and needs review. Target below 10%, an assumption (017)."),
+    tile("Reopened", percent(m.reopened), `${share(m.reopened)} disqualified`,
+      "Disqualified candidates a recruiter reopened: a check on wrong rejections."),
+    tile("Talent pool", percent(m.pool), `${share(m.pool)} outside the area`,
+      "Rejected for their zone, and said yes to hear if we open in their city."),
+    tile("Show-up rate", percent(m.showed_up), `${share(m.showed_up)} with a result`,
+      "Showed up, of showed up and no-show. Statuses have no date: a running total."),
+  );
+  fillTable($("dropped-off"), Object.entries(m.dropped_off).map(([stage, count]) => [sentence(human(stage)), String(count)]));
+  fillTable($("by-field"), Object.entries(m.flagged).map(([field, rate]) => [sentence(human(field)), share(rate), percent(rate)]));
+  fillTable(
+    $("by-language"),
+    Object.entries(m.by_language).map(([language, rate]) => [LANGUAGES[language] ?? language, share(rate), percent(rate)]),
+  );
+}
+
+async function loadMetrics() {
+  try {
+    renderMetrics(await api("/panel/metrics"));
+    error("");
+  } catch {
+    error("Couldn't load the metrics. Try again.");
+  }
+}
+
 async function load() {
   try {
     rows = await api("/panel/candidates");
@@ -295,7 +368,8 @@ for (const button of $("views").querySelectorAll("button")) {
   button.addEventListener("click", () => {
     view = button.dataset.view;
     renderViews();
-    renderList();
+    if (view === "metrics") loadMetrics();
+    else renderList();
   });
 }
 $("outcome").addEventListener("change", renderList);
@@ -308,7 +382,8 @@ $("back").addEventListener("click", () => {
 
 $("refresh").addEventListener("click", async () => {
   await load();
-  if (current) await open(current.candidate.id);
+  if (view === "metrics") await loadMetrics();
+  else if (current) await open(current.candidate.id);
 });
 
 load();
