@@ -19,14 +19,6 @@ const LABELS = {
     speaking: "Leo está hablando · puedes interrumpir",
     micFailed: "No se pudo usar el micrófono. Puedes seguir escribiendo.",
     voiceFailed: "La voz dejó de funcionar. Puedes seguir escribiendo.",
-    // Played the moment the candidate stops talking: neutral, they never rate
-    // the answer (#25), and they are not in the transcript.
-    acks: [
-      "acks/es-vale.mp3",
-      "acks/es-mm-vale.mp3",
-      "acks/es-a-ver.mp3",
-      "acks/es-aja.mp3",
-    ],
   },
   en: {
     subtitle: "Virtual assistant (AI)",
@@ -44,12 +36,6 @@ const LABELS = {
     speaking: "Leo is speaking · you can interrupt",
     micFailed: "Couldn't use the microphone. You can keep typing.",
     voiceFailed: "Voice stopped working. You can keep typing.",
-    acks: [
-      "acks/en-okay.mp3",
-      "acks/en-alright.mp3",
-      "acks/en-lets-see.mp3",
-      "acks/en-mm-hm.mp3",
-    ],
   },
 };
 // Up to the trailing punctuation: "…/privacidad. ¿Empezamos?"
@@ -264,13 +250,6 @@ async function startVoice() {
     talk.disabled = false;
   }
   setState("thinking");
-  try {
-    const files = Object.values(LABELS).flatMap((l) => l.acks);
-    const buffers = await Promise.all(files.map(decode));
-    voice.acks = new Map(files.map((file, i) => [file, buffers[i]]));
-  } catch {
-    return voiceFailed();
-  }
   if (!busy) speak(); // else the running turn speaks its reply
 }
 
@@ -348,7 +327,6 @@ async function speak() {
   let buffer;
   try {
     buffer = await decode(`${path()}/speech`);
-    await voice.ack; // the acknowledgement plays to its end
   } catch {
     return voiceFailed();
   }
@@ -398,9 +376,6 @@ async function endOfSpeech() {
   voice.talking = false;
   const { cut } = voice; // where a barge-in stopped Leo, if one did
   voice.cut = undefined;
-  const { acks } = labels;
-  const ack = voice.acks.get(acks[Math.floor(Math.random() * acks.length)]);
-  voice.ack = new Promise((resolve) => play(ack, resolve));
   setState("thinking");
   const audio = await recording();
   let text;
@@ -419,8 +394,7 @@ async function endOfSpeech() {
   if (!voice) return;
   if (cut === undefined) return listen(); // a noise, not words
   // No words cut Leo off: on speakers, his own echo can. He goes on.
-  await voice.ack;
-  if (voice) say(voice.reply.buffer, cut);
+  say(voice.reply.buffer, cut);
 }
 
 talk.addEventListener("click", () => (voice ? stopVoice() : startVoice()));
