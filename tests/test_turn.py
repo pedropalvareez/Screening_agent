@@ -186,6 +186,26 @@ def test_second_invalid_zone_answer_offers_the_cities(
     assert replies[3].options is not None
 
 
+def test_greeting_re_ask_does_not_pitch_the_screening_again(
+    agent: Agent, fake: FakeLLM
+) -> None:
+    chat(agent, fake, ("Hola", said("off_topic")))
+    assert "screening" not in fake.calls[-1][-1]["content"]
+
+
+@pytest.mark.parametrize(
+    ("zone", "part_time"), [("Getafe", "media jornada"), ("Monterrey", "medio tiempo")]
+)
+def test_spanish_options_use_the_countrys_words(
+    agent: Agent, fake: FakeLLM, zone: str, part_time: str
+) -> None:
+    lives: Step = (f"Vivo en {zone}", said(zone=zone))
+    chat(agent, fake, *STEPS[:2], lives, STEPS[3])
+    system = fake.calls[-1][0]["content"]
+    assert part_time in system
+    assert '"noche"' in system  # evening, not "tarde"
+
+
 def test_platforms_are_listed_only_in_the_closed_options_re_ask(
     agent: Agent, fake: FakeLLM
 ) -> None:

@@ -89,8 +89,9 @@ except for a recap list.
 - Never greet, introduce yourself or the screening, or open as if the chat were \
 starting.
 - Acknowledge an answer by noting it, never by rating it: never say whether it is \
-good, useful, fine or a problem for the job, as in "no experience is fine". When \
-the directive gives nothing to acknowledge, go straight to the question.
+good, useful, fine or a problem for the job, as in "no experience is fine". Note \
+the value alone, never the field's name; a yes or no needs a word or two. When the \
+directive gives nothing to acknowledge, go straight to the question.
 - Never ask them to double-check an answer: a recap at the end does that.
 - At most one emoji.
 - Never promise a position, pay or dates, and never state facts about the \
@@ -100,6 +101,14 @@ company.
 # Spanish name for the driving licence: neutral until the zone is known
 # (process-design §4).
 LICENCE = {"ES": "carné", "MX": "licencia de manejo"}
+# Spanish names for the availability options, in schema.py's order: left to the
+# LLM, Spain heard Mexico's "medio tiempo".
+AVAILABILITY = {
+    "ES": ("jornada completa", "media jornada", "solo fines de semana"),
+    "MX": ("tiempo completo", "medio tiempo", "solo fines de semana"),
+}
+# And for the schedule, in both countries: left to the LLM, evening was "tarde".
+SCHEDULE = ("mañana", "tarde", "noche", "cualquier horario")
 
 NOTES = """\
 You write one note for a recruiter about a screening chat with a delivery-driver \
@@ -164,6 +173,8 @@ def directive(
                 " near one of the service cities, and tell them to tap it in the"
                 " list under your message or type another city."
             )
+    elif stage == "greeting":  # the greeting asked already: no pitch again
+        ask = "Ask again, in a few words and nothing more, whether they want to start."
     elif invalid == 1:
         ask = f"Their answer did not work. Ask again, with a short example: {question}."
     elif invalid >= 2:
@@ -177,11 +188,27 @@ def directive(
     return f"They just said: {heard}. Acknowledge it briefly. {ask}" if heard else ask
 
 
+def named(alias: object, names: tuple[str, ...]) -> str:
+    pairs = zip(get_args(alias), names, strict=True)
+    return ", ".join(f'{code} "{name}"' for code, name in pairs)
+
+
 def phrasing(language: Language, country: str | None, directive: str) -> list[Message]:
     system = PHRASING.format(language="English" if language == "en" else "Spanish")
     if language != "en":  # in an English prompt, Spanish rules pull it to Spanish
         licence = LICENCE.get(country or "", "carné o licencia de conducir")
         system += f'- Informal: tú.\n- Call the driving licence "{licence}".\n'
+        availability = AVAILABILITY.get(country or "")
+        if availability is not None:
+            options = named(Availability, availability)
+            system += f"- Call the availability options: {options}.\n"
+        system += f"- Call the schedule options: {named(Schedule, SCHEDULE)}.\n"
+        # Spanish examples only here: in PHRASING, "noted" leaked into Spanish.
+        system += (
+            '- Vary the acknowledgement, never naming the field ("zona", "turno"):'
+            ' "Getafe, apuntado", "Perfecto, media jornada", "Gracias, Lucía".'
+            ' A yes needs no more than "Perfecto, anotado".\n'
+        )
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": directive},
