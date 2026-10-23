@@ -198,7 +198,7 @@ async function submit(text, typed) {
 const FRAME_MS = 20;
 const SPEECH_MS = 100; // loud this long starts the candidate's turn
 const BARGE_IN_MS = 300; // longer over Leo, so leftover echo does not stop him
-const SILENCE_MS = 800; // quiet this long ends it
+const SILENCE_MS = 650; // quiet this long ends it
 const MARGIN_DB = 15; // loud is this far over the noise floor
 const MIN_DB = -50; // and over this, as noise suppression can leave near silence
 const RISE_DB = 0.02; // per frame: the floor follows new noise, not speech
