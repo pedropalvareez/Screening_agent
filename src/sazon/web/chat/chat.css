@@ -14,6 +14,8 @@
   --online: #4fd12a;
   --error: #f87171;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* Side padding that centres a 46rem column on wide screens. */
+  --column: calc((100% - 46rem) / 2);
   color-scheme: dark;
 }
 
@@ -39,7 +41,7 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) max(16px, var(--column)) 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
@@ -89,7 +91,7 @@ header p { margin: 0; font-size: 13px; color: var(--muted); }
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 16px max(12px, env(safe-area-inset-left, 0px)) 16px max(12px, env(safe-area-inset-right, 0px));
+  padding: 16px max(12px, env(safe-area-inset-left, 0px), var(--column)) 16px max(12px, env(safe-area-inset-right, 0px), var(--column));
   background-image: radial-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px);
   background-size: 24px 24px;
 }
@@ -117,6 +119,7 @@ header p { margin: 0; font-size: 13px; color: var(--muted); }
 }
 
 .agent a { color: inherit; }
+.agent a:focus-visible { outline-color: var(--on-agent); } /* lime on the light bubble is barely visible */
 
 .error {
   align-self: center;
@@ -142,7 +145,7 @@ header p { margin: 0; font-size: 13px; color: var(--muted); }
 footer {
   background: var(--surface);
   border-top: 1px solid var(--line);
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  padding: 8px max(12px, var(--column)) calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 #options:not(:empty) {
