@@ -43,7 +43,7 @@ The LLM converses, code decides. Each turn the LLM extracts fields, intent and l
 | zone | enum | Must resolve to a service city | Code: alias table + difflib |
 | availability | enum | full_time, part_time, weekends; mixed answer → ask to pick one [assumption] | LLM |
 | preferred_schedule | enum | morning, afternoon, evening, flexible; two or more slots → flexible [assumption] | LLM |
-| prior_delivery_experience.years | float | 0–50; "6 months" = 0.5; any experience, even a week, is a fraction above 0, so 0 means none; 0 does not disqualify, it is flagged | LLM extracts, code validates |
+| prior_delivery_experience.years | float | 0–50; "6 months" = 0.5; any experience, even a week, is a fraction above 0, so 0 means none; 0 does not disqualify; the recruiter sees it in the summary | LLM extracts, code validates |
 | prior_delivery_experience.platforms | list[enum] | glovo, uber_eats, just_eat, rappi, didi_food, own_fleet, other (raw text kept); required if years > 0, empty if years = 0, checked inside the same submodel | LLM |
 | start_date | date | In [today, today + 365]; past → re-ask; "asap" = today; "in September" = the 1st [assumption] | LLM resolves, code validates |
 
