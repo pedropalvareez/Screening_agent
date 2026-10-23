@@ -118,6 +118,35 @@ header p { margin: 0; font-size: 13px; color: var(--muted); }
   background: var(--candidate);
 }
 
+/* Leo's name over his bubble and his avatar beside it, in CSS alone. */
+.agent:not(.typing) {
+  position: relative;
+  margin: 22px 0 0 36px;
+}
+.agent:not(.typing)::before {
+  content: "Leo";
+  content: "Leo" / ""; /* decorative: screen readers read the bubble alone */
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+}
+.agent:not(.typing)::after {
+  content: "";
+  position: absolute;
+  top: -22px;
+  left: -36px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(rgb(0 0 0 / 0.22) 30%, transparent 31%) 0 0 / 3px 3px, url("leo.png") center / cover;
+  image-rendering: pixelated;
+  box-shadow: 0 0 0 1.5px var(--online);
+}
+.typing { margin-left: 36px; } /* under Leo's bubbles, past the avatar */
+
 .agent a { color: inherit; }
 .agent a:focus-visible { outline-color: var(--on-agent); } /* lime on the light bubble is barely visible */
 
