@@ -28,8 +28,9 @@ QUESTIONS: dict[Stage, str] = {
     "name": "their full name, with surname",
     "availability": f"their availability ({listed(Availability)})",
     "schedule": f"their preferred schedule ({listed(Schedule)})",
-    "experience": "how long they have done delivery work, and on which platforms"
-    f" ({listed(Platform)})",
+    # Without the platform list, which reads like a form; the closed-options
+    # re-ask lists them.
+    "experience": "how long they have done delivery work, and on which platforms",
     "start_date": "the date they could start",
     "confirm": "whether the recap of their answers is right",
 }
@@ -166,7 +167,11 @@ def directive(
     elif invalid == 1:
         ask = f"Their answer did not work. Ask again, with a short example: {question}."
     elif invalid >= 2:
-        ask = f"Their answer did not work again. Ask with closed options: {question}."
+        options = f" ({listed(Platform)})" if stage == "experience" else ""
+        ask = (
+            "Their answer did not work again. Ask with closed options:"
+            f" {question}{options}."
+        )
     else:
         ask = f"Next question: {question}."
     return f"They just said: {heard}. Acknowledge it briefly. {ask}" if heard else ask

@@ -186,6 +186,18 @@ def test_second_invalid_zone_answer_offers_the_cities(
     assert replies[3].options is not None
 
 
+def test_platforms_are_listed_only_in_the_closed_options_re_ask(
+    agent: Agent, fake: FakeLLM
+) -> None:
+    unclear: Step = ("Algo he repartido", said())
+    directives: list[str] = []
+    conversation_id, _ = chat(agent, fake, *STEPS[:6])
+    for _ in range(3):  # the question, the re-ask with an example, closed options
+        directives.append(fake.calls[-1][-1]["content"])
+        chat(agent, fake, unclear, conversation_id=conversation_id)
+    assert ["glovo" in d for d in directives] == [False, False, True]
+
+
 def test_pool_yes_stores_consent_expiry_and_raw_city(
     agent: Agent, fake: FakeLLM
 ) -> None:
