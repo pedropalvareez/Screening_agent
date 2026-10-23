@@ -4,7 +4,7 @@
 
 const LABELS = {
   es: {
-    subtitle: "Asistente virtual (IA)",
+    subtitle: "Asistente virtual",
     message: "Mensaje",
     placeholder: "Escribe un mensaje",
     send: "Enviar",
@@ -29,7 +29,7 @@ const LABELS = {
     ],
   },
   en: {
-    subtitle: "Virtual assistant (AI)",
+    subtitle: "Virtual assistant",
     message: "Message",
     placeholder: "Type a message",
     send: "Send",
