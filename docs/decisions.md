@@ -76,9 +76,10 @@ Template:
 
 ## 010. Persona and tone (provisional)
 
-- Decision: "Leo, Grupo Sazón's virtual assistant", disclosed as an AI. Informal "tú" in Spain and Mexico. One question per message, at most about 300 characters, country-specific wording once the zone is known, 0–1 emoji and none in rejections. Enforced by evals, not by truncation.
+- Decision: "Leo, Grupo Sazón's virtual assistant", disclosed as an AI. Informal "tú" in Spain and Mexico. One question per message, at most about 300 characters, country-specific wording once the zone is known, 0–1 emoji and none in rejections. Enforced by evals, not by truncation. Spanish replies use each country's words for availability ("media jornada" in Spain, "medio tiempo" in Mexico) and Spanish schedule names, and acknowledge the value without naming the field. The experience question lists platforms only in the closed-options re-ask.
 - Alternative: an unnamed assistant; "usted" in Mexico.
 - Trade-off: warmer and easier to remember; length is a guideline checked offline, not a runtime guarantee.
+- Verified (23 October): one live run (11 conversations, not the full bar): all end as scripted, every field 100%, judges 2/79 (both English).
 
 ## 011. Outcomes (provisional)
 
