@@ -2,7 +2,7 @@
 
 Where the brief is silent or offers a choice, this file rules. Bonus features not listed here are out of scope.
 
-Entries marked (provisional) come from the Phase 1 design and product sessions and may change.
+Entries marked (provisional) come from the Phase 1 design and product sessions and are not fully built yet, so they may change. The rest are built as written; where an entry says "designed, not built", leaving that part unbuilt is the decision.
 
 Template:
 
@@ -19,7 +19,7 @@ Template:
 - Alternative: a JS framework for the panel; Postgres; separate services.
 - Trade-off: fewest moving parts for a demo-sized load; SQLite and a single process cap write concurrency, revisit before multi-instance deployment.
 
-## 002. LLM client and model (provisional)
+## 002. LLM client and model
 
 - Decision: OpenRouter through its OpenAI-compatible API. Model: Claude Haiku 5.5 at low effort for every call, confirmed by the scripted conversations in evals/ (#10) on per-field extraction accuracy, invalid-JSON rate, p50/p95 latency and the tone rules. Gemini 3.8 Flash is compared only where Haiku fails the bar below.
 - Alternative: a single provider's SDK; Gemini 3.8 Flash; Haiku to extract plus Sonnet 5.5 to phrase.
@@ -31,117 +31,117 @@ Template:
 - Verified (#25): every reply the judges rule flagged in the 21 October run rated a favourable answer (years above 0, a licence, an evening slot); the 6 zero-year answers, which the "no experience is fine" example covers, were clean. PHRASING now says to acknowledge an answer by noting it, never by rating it, and names good and useful next to fine and a problem. Replay of that run's phrasing directives, one call each with the system prompt rebuilt by prompts.phrasing, Haiku 5.5 wording and Sonnet 5.5 judging with the same REPLY_RULES: judges flags 0 of the 18 acknowledgements of prior experience (12 in the run, 14 when the old prompt is replayed) and 0 of the 6 flagged licence and schedule replies (6 in the run, 1 replayed). On 40 other directives drawn at random (seed 25), every rule stays at 0 except contradicts, 0 to 1: "¿Me compartes tu nombre completo, con tus dos apellidos?", the text the judge also flagged in the run and the hand review above cleared. 10 more directives on what #10 fixed (the uncovered-zone re-ask, zero years, the questions after the duration and pay answers) break no rule. Rejected on the way: a positive example in PHRASING ("two years is a solid background") also stopped the praise, 0/18 judged, but in unjudged samples the English licence question then asked for the licence type 20/40 times against 3/40 with the old prompt; "without rating it" in the directive left "that's useful to know" in most English replies. All replays cost $0.63.
 - Verified (#23): code now renders the chat facts and the LLM writes at most one note, on what the candidate wrote that the fields do not hold, or NONE (013). The note sees today's date, the key data and the candidate's messages, not Leo's. A replay came first: the 33 closings of the #10 run, rebuilt by folding each turn's extraction through engine.apply (33/33 end in the dump's outcome), with Haiku 5.5 writing the note through turn.close() and Sonnet 5.5 judging it: 66 calls, $0.09 with a 3-closing pilot. In the pilot the first prompt answered NONE to "Full time, de lunes a viernes", so the prompt now says the key data keeps one option per answer. The replay of all 33 with that prompt gave 15 notes and 18 NONE; the judge flagged no note, but by hand 3 of the 15 said "mañana mismo" did not match 22 October, the day after the run's date, which neither the model nor the judge was given. The note call now gets today's date, as extraction does. Then one live run on 21 October with the final prompt: 33/33 conversations end as scripted, 0 invalid JSON, every field 100%, intent 272/273 (three_invalid #2 read "Carmen, ya te lo he dicho" as off_topic). 11 of the 33 closings get a note. Of the 11, none names the candidate or uses a gendered pronoun (2 in #10), none is labelled (4), none is in Spanish, none assesses (1), and the judge flags none as unsupported (9/33); by hand none misstates a fact. They report the licence in progress (3/3), "de lunes a viernes" (2/3, none in #10), weekend afternoons and nights where the schedule says flexible (3/3, one adding the motorbike licence) and Toledo with no service city near (3/3). The new misses rule, judged on all 33 closings, flags 2 (6%): language_switch #0, whose NONE drops "de lunes a viernes", and three_invalid #2, which leaves out only the name refusal that code already reports as invalid answers, so 1/33 by hand. Every notes rule is under the 10% bar, though 0 of 11 notes is a small sample. No longer in the notes: the two prompt-injection attempts, now only in the transcript. The note call took p50/p95 3.0/9.8 s against 1.5/5.2 s in #10, so closing turns took 4.3/12.8 s (3.1/6.6 s). Turns overall took 2.8/6.9 s, under the bar, while the other turns were slower too (p95 6.0 against 4.1 s), so part of it is provider noise. The key's usage rose $0.98 over the run. The key is shared with the #25 replays, so that is an upper bound on the run's cost. Reply rules in the same run, with PHRASING from before #25: 6 promise or state a company fact, 2 greet, 3 contradict the directive, 15 (6%) judge the answer.
 
-## 003. Bonus: voice agent (provisional)
+## 003. Bonus: voice agent
 
 - Decision: hands-free turn-taking with barge-in in the web chat, on the same turn(), transcript and screening. States: listening → (end of speech) → thinking → Leo speaking → listening. Speaking while Leo speaks stops his audio and starts listening (barge-in); nothing is heard while thinking, so one conversation never runs two turns at once. Speech-to-text and text-to-speech go through OpenRouter on OPENROUTER_API_KEY and llm.py's httpx2 client: elevenlabs/scribe-v2 and microsoft/mai-voice-2.1-flash with the voice Grant by the conversation's language (es-MX-Grant, en-US-Grant; the locale fixes the synthesis language), both with data_collection deny. POST /conversations/{id}/transcription takes the raw audio as the request body (no python-multipart), with a size cap, and returns the text, which the browser sends through the messages endpoint. GET /conversations/{id}/speech speaks the conversation's latest stored reply, never caller-supplied text, so it cannot be used as a TTS proxy. A sentence with a link, text in parentheses and emoji are not read aloud (MAI reads 🙌 as "manos levantadas celebrando"); they stay visible in the chat, so the spoken greeting drops "(una IA)" and its privacy link while the written one keeps both. Scribe's sound tags ("[click]", "(laughter)") are not words: a recording with nothing else is noise, and starts no turn. A barge-in that holds no words lets Leo go on from where he stopped: on laptop speakers his own echo can cut him off. At end of speech nothing plays until Leo's reply is ready; the toggle shows that Leo is thinking. Pre-recorded acknowledgements ("vale", "mm-hm") at end of speech were tried and dropped: the repo owner preferred the silence, and since they played before the transcription, they also answered coughs and clicks. Audio is never stored, only the transcript, redacted like typed text. The candidate starts voice with a "talk to Leo" toggle that shows the state, with no phone or calling metaphor; typing stays available at all times.
 - Alternative: push-to-talk; ElevenLabs direct (realtime STT could save about 0.6 s but needs a second key); ElevenLabs Agents (public tunnel, per-minute cost); speech-to-speech models, rejected because the model would word replies freely, breaking 006; Pipecat.
 - Trade-off: about 5 s of silence per turn while Leo thinks, shown only by the toggle's state. turn() makes two sequential LLM calls (2.8 s p50, 6.9 s p95 in #23), and voice adds STT, TTS and about 0.65 s of end-of-speech silence; nothing in turn(), the engine or the prompts changes. MAI has no male es-ES voice, so candidates in Spain hear a Mexican accent; the repo owner accepted es-MX. The speech-to-text provider hears the candidate's audio before any redaction (014), so data_collection deny is the only guard there.
 - Verified (spike, 22 Oct): real services, 5 runs each on a reused connection, with synthetic candidate audio (a TTS clip converted with ffmpeg; no real microphone). STT median 0.83 s for webm/opus (Chrome) and 0.82 s for m4a/aac (Safari), exact transcript, about $0.00024 per 4 s clip. MAI TTS of a 10 s greeting: first chunk 0.64–0.83 s, about 1.2 s in total, streamed in chunks. data_collection deny works for both. ElevenLabs Flash through OpenRouter was also tested (0.6 s, not chunked) and not chosen.
 
-## 004. Channel (provisional)
+## 004. Channel
 
 - Decision: a web chat styled as messaging for the demo, built on a channel-agnostic core with one entry point, turn(conversation, message) → reply. WhatsApp is designed as a production adapter, not built. The agent sends the first message.
 - Alternative: real WhatsApp through Twilio or Meta Cloud API; a Telegram bot.
 - Trade-off: no new dependency and a reliable live demo; it is not the channel candidates actually use, so the jump to WhatsApp has to be explained. The QUALIFIED closing says a recruiter will message the candidate in the chat, but the demo panel cannot write into it: in production the recruiter replies through WhatsApp, which is not built.
 
-## 005. Stage order and derived stage (provisional)
+## 005. Stage order and derived stage
 
 - Decision: GREETING (AI and privacy notice) → LICENSE → ZONE → NAME → AVAILABILITY → SCHEDULE → EXPERIENCE → START_DATE → CONFIRM. Knockout questions come first. One message may fill several fields. The stage is not stored; it is the first unmet requirement in that fixed order.
 - Alternative: the brief's order with the name first; free slot-filling chosen by the LLM.
 - Trade-off: unqualified candidates exit in two turns without giving personal data, and there is no stored stage to fall out of sync; the first two questions feel impersonal.
 
-## 006. Turn pipeline (provisional)
+## 006. Turn pipeline
 
 - Decision: an extraction call returns every field present plus intent, language, the topic of any question and a yes/no to a confirmation (the CONFIRM recap or the 018 opt-in); Pydantic strict checks format; engine.py applies business rules and picks the next stage; code hands the LLM a closed directive to phrase. Closing messages, approved answers and the abuse warning are code templates in ES and EN, sent word for word. On LLM failure: one retry, then a template reply with state unchanged. Each call sees only what it needs: extraction sees the pending question, the agent's last message and the new message (with the full history it could re-extract stale values and undo a correction); phrasing sees the directive and no candidate text; the summary note sees today's date, the key data and the candidate's messages. Storage keeps the full history.
 - Alternative: one call returning fields and reply together; extraction plus fixed templates for every message.
 - Trade-off: two calls per turn cost latency and money, in exchange for the LLM never deciding. Templated closings read less naturally but cannot promise anything the business did not approve.
 
-## 007. Service zones (provisional)
+## 007. Service zones
 
 - Decision: a fictional list of 12 cities holding the 45 locations; coverage is checked per city. ES: Madrid, Barcelona, Valencia, Sevilla, Málaga, Bilbao, Zaragoza. MX: Ciudad de México, Guadalajara, Monterrey, Puebla, Querétaro. The LLM extracts the city as written; code resolves it with a metro-area alias table and difflib. One re-ask before disqualifying; the re-ask shows the 12 cities as tap options grouped by country, plus "other city" to type one.
 - Alternative: the LLM maps to the enum directly; a city dropdown from the first question; city plus neighbourhood mapped to one of the 45 locations; postcode to distance from the nearest location.
 - Trade-off: only code decides coverage; the alias table is maintained by hand, and an unlisted suburb can be wrongly rejected, which the re-ask (the candidate taps the city the suburb belongs to) and recruiter review mitigate. Tap options cannot catch a wrong fuzzy match (Palencia read as Valencia), which only CONFIRM shows back. A dropdown first would cost the natural dialogue and leave uncovered towns without an option. City granularity also accepts candidates far from any location; postcode distance is the production fix, and it needs a postcode-to-coordinates table or a geocoder.
 
-## 008. Field rules (provisional)
+## 008. Field rules
 
 - Decision: full name has at least two words. Any motor-vehicle licence counts, and "in progress", "expired" or "suspended" count as no. Availability and preferred schedule are one enum value each, and two or more named slots become flexible. Prior delivery experience is one nested object, as in the brief: years as a float from 0 to 50 (0 does not disqualify and is flagged) and platforms as an enum plus other with the raw text, normalized by the LLM, required when years > 0 and empty when years = 0, a rule validated inside the submodel. Start date is an ISO date in [today, today + 365 days]; the LLM resolves relative dates and CONFIRM shows the result. Today is the candidate's date: Europe/Madrid or America/Mexico_City from the resolved zone, Spain until the zone is known.
 - Alternative: 0 years disqualifies; start-date buckets; free-text platforms.
 - Trade-off: no knockout the client did not ask for. The LLM normalizes only fields that no decision depends on.
 
-## 009. Invalid answers and silence (provisional)
+## 009. Invalid answers and silence
 
 - Decision: first invalid answer → re-ask with an example; second → offer closed options; third → flag the field and move on, and the outcome becomes NEEDS_REVIEW. Ambiguity never disqualifies. Corrections are accepted until the conversation closes. A silent candidate resumes where they left off. ABANDONED is computed on read after 72 h of inactivity. Nudges are designed but not sent: at most two per conversation, at +8 h and +22 h after the candidate's last message, none at night.
 - Alternative: disqualify after N failures; immediate human handoff; scheduler-driven nudges.
 - Trade-off: some candidates reach recruiters incomplete, and no background process is needed.
 
-## 010. Persona and tone (provisional)
+## 010. Persona and tone
 
 - Decision: "Leo, Grupo Sazón's virtual assistant", disclosed as an AI. Informal "tú" in Spain and Mexico. One question per message, at most about 300 characters, country-specific wording once the zone is known, 0–1 emoji and none in rejections. Enforced by evals, not by truncation. Spanish replies use each country's words for availability ("media jornada" in Spain, "medio tiempo" in Mexico) and Spanish schedule names, and acknowledge the value without naming the field. The experience question lists platforms only in the closed-options re-ask.
 - Alternative: an unnamed assistant; "usted" in Mexico.
 - Trade-off: warmer and easier to remember; length is a guideline checked offline, not a runtime guarantee.
 - Verified (23 October): one live run (11 conversations, not the full bar): all end as scripted, every field 100%, judges 2/79 (both English).
 
-## 011. Outcomes (provisional)
+## 011. Outcomes
 
 - Decision: QUALIFIED → "a recruiter will message you here". DISQUALIFIED → a clear reason plus "tell us here if this is a mistake"; anything written after close is flagged for human review. Also NEEDS_REVIEW, WITHDRAWN (including abusive) and ABANDONED.
 - Alternative: "a recruiter will call you"; a generic rejection with no reason.
 - Trade-off: the best candidates stay on the async channel. Stating the reason lets someone learn the passing answer, but every answer is self-declared anyway and the licence is checked at onboarding.
 
-## 012. Recruiter panel (provisional)
+## 012. Recruiter panel
 
 - Decision: a work queue (QUALIFIED and NEEDS_REVIEW) with filters by outcome and zone; a detail view with summary, JSON, transcript and the candidate's questions; recruiter_status (pending, contacted, hired, rejected, showed_up, no_show; the last two measure 017's first shift) kept separate from the screening outcome; recruiters can reopen a DISQUALIFIED candidate, which moves it to NEEDS_REVIEW and keeps the screening's outcome for 017's guardrail. The panel is in English, like the summary. Basic auth from .env with fastapi.security.HTTPBasic and secrets.compare_digest.
 - Alternative: a read-only panel; a kanban board; per-user accounts.
 - Trade-off: real tracking for one enum and one endpoint; one shared credential, so there is no per-recruiter audit trail. The queue is not paginated and the server loads every record per request: fine for the demo, but at about 1,000 applications a week it grows every week, so before production store outcome and city in indexed columns and paginate.
 
-## 013. Summary (provisional)
+## 013. Summary
 
 - Decision: the summary is rendered by code: the outcome, the key data from validated fields, the flagged fields and the chat facts the state holds (questions asked, corrected answers, invalid answers, answers naming an uncovered city, abusive messages). Then at most one LLM note, labelled as AI-generated, on something the candidate wrote that the fields do not hold (a condition, a limit or a doubt); none when there is nothing. Generated when a conversation reaches a terminal state.
 - Alternative: 2–3 LLM notes on the whole chat (#10: about 15% misstated how the chat went); a template only; an LLM-only summary.
 - Trade-off: facts code knows cannot be misstated; one extra call per closed conversation for the only part code cannot see, and that note can still be wrong, so the panel labels it.
 
-## 014. Privacy (provisional)
+## 014. Privacy
 
 - Decision: knockout questions before personal data. Regex redaction of DNI/NIE, CURP, phone, email and card numbers before every LLM call and before storage. OpenRouter set to exclude providers that train on inputs. EU routing and a retention period for disqualified candidates are designed, not enforced in the demo.
 - Alternative: no redaction; enforce EU routing now.
 - Trade-off: regexes miss cases but reduce what reaches a third party; EU routing may require a paid OpenRouter plan.
 
-## 015. Bonus scope (provisional)
+## 015. Bonus scope
 
 - Decision: in scope: multi-language (ES/EN), guardrails, tests and evals, minimal analytics (completion rate, drop-off stage, median duration; 023) and voice (003). Possible but not in scope until decided: interview scheduling, FAQ answers by classification, sent re-engagement nudges.
 - Alternative: many shallow bonus features.
 - Trade-off: the rubric rewards depth; most chosen bonuses fall out of the core design.
 
-## 016. Product direction (provisional)
+## 016. Product direction
 
 - Decision: build the triage queue with business rules in code; that is the answer to "why not buy Paradox or Fountain": decisions are tested, auditable and immune to prompt injection. Designed but not built: auto-scheduling of onboarding when volume outgrows 13 recruiters (about 4,000 qualified a week at 10K applications), first-shift confirmation 48 h ahead, and inbound phone voice as another channel adapter. Languages stay ES/EN; each new language is one template set, chosen from candidate data.
 - Alternative: build interview scheduling with fictional slots; an FAQ-first "sell, then screen" agent; real phone voice; ES/EN/PT/FR.
 - Trade-off: everything built uses data the brief provides; the alternatives need client data we do not have, so they stay as designed phases.
 
-## 017. Product metrics (provisional)
+## 017. Product metrics
 
 - Decision: two layers. Agent metric, owned by the agent and estimated in the demo: recruiter minutes per qualified candidate. Baseline from the brief: 80% of recruiter time goes to unqualified candidates, so each qualified candidate costs about 5 calls of recruiter time today [assumption: individual calls vary, but over time calls with qualified and unqualified candidates average the same length; unanswered attempts come on top]. At 32 minutes a call [assumption: the brief gives no call length; an 8-hour day over its ~15 calls a day], that is about 160 minutes per qualified. With the agent, recruiters spend time only on QUALIFIED and NEEDS_REVIEW, so the cost falls toward one call per qualified plus the NEEDS_REVIEW load. Business outcome, influenced but not controlled by the agent: drivers who complete their first shift per week, measured in production through recruiter_status values showed_up and no_show. Supporting input: response rate (applied → started screening). Guardrails: rate of DISQUALIFIED reopened by a recruiter, and NEEDS_REVIEW share with a target below 10% [assumption], broken down by flagged field and by language. Diagnostics as in 015. That async messaging fixes the 60% is presented as a hypothesis, tested by a two-week 50/50 split between calls and chat.
 - Alternative: first shift as the only north star; time from application to the recruiter queue; completion rate as headline; hires per week.
 - Trade-off: the commitment is something the agent controls and the demo shows; whether it moves first shifts is a bet tested in production.
 
-## 018. Talent pool for uncovered zones (provisional)
+## 018. Talent pool for uncovered zones
 
 - Decision: a zone_not_covered closing asks "shall we tell you if we open in your city?". A yes stores consent, an expiry date 12 months out and the raw city. A no stores nothing; an unclear reply is flagged like any message after close. Reactivation is designed, not sent. Only worth it if Grupo Sazón plans to expand.
 - Alternative: a pool for every rejection; design only.
 - Trade-off: one boolean, one date and one template line keep an already-acquired candidate; it extends retention of personal data, so it needs explicit consent and an expiry.
 
-## 019. Candidate questions (provisional)
+## 019. Candidate questions
 
 - Decision: the agent answers process questions (duration, next steps, data use) from code-approved text. Job questions (pay, vehicle, insurance) get "a recruiter will confirm that" and are logged for the recruiter, until the client provides an FAQ. The extraction tags each question with a topic (duration, next_steps, data_use, other) and code picks the text; any other topic goes to a recruiter. This is the narrow case of 015's "FAQ answers by classification": three approved process answers, no job facts.
 - Alternative: a fictional full FAQ; log everything.
 - Trade-off: the agent never states a company fact the business did not approve; candidates asking about pay wait for a person.
 
-## 020. First message (provisional)
+## 020. First message
 
-- Decision: one sentence of AI disclosure, "about 2 minutes", a privacy link and a yes/no question, as a code template. Variants for A/B tests are assigned by hash(conversation_id) % 2 and stored in SQLite.
+- Decision: one sentence of AI disclosure, "about 2 minutes", a privacy link and a yes/no question, as a code template. A/B variants are designed, not built: assigned by hash(conversation_id) % 2 and stored with the conversation, once there is traffic to compare.
 - Alternative: full privacy notice up front; disclosure in the second message. PostHog for flags and funnels is a possible production dependency, not added.
 - Trade-off: the first message decides the response rate, so it stays short; disclosure is never deferred.
 
-## 021. Bias checks (provisional)
+## 021. Bias checks
 
 - Decision: the AI note in the summary describes what the candidate wrote (a condition, a limit or a doubt) and never assesses the candidate, checked by evals; the chat facts are rendered by code. The NEEDS_REVIEW guardrail is broken down by language.
 - Alternative: hide the zero-experience flag; mention bias only in the presentation.
