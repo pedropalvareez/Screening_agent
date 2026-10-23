@@ -85,8 +85,10 @@ body {
   white-space: nowrap;
 }
 
+/* Three columns so the title sits at the true centre, whatever the sides measure. */
 header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
   padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 14px;
@@ -96,6 +98,32 @@ header {
 h1, h2 { font-family: var(--font-display); letter-spacing: -0.01em; }
 h1 { margin: 0; font-size: 18px; }
 header p { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* Grupo Sazón's pixel mark: an S with a spice-coloured spark for the ó. */
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+.brand .mark { fill: #d9480f; }
+.brand .spark { fill: #f2a900; }
+header .brand { justify-self: start; }
+header .title { text-align: center; }
+header .title p {
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+header .title h1 { font-size: 22px; }
+#refresh { justify-self: end; }
 
 button, select {
   font: inherit;
@@ -128,8 +156,6 @@ select {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
-
-#refresh { margin-left: auto; }
 
 .toolbar {
   display: flex;
