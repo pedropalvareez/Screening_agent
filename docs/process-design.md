@@ -1,10 +1,19 @@
 # Process design
 
-The conversation contract for the Grupo Sazón driver screening agent. [assumption] marks where the brief is silent. Rationale and alternatives live in decisions.md.
+By Pedro Pablo Álvarez
+
+The conversation contract for the Grupo Sazón driver screening agent. [assumption] marks a decision we made where the client's requirements did not specify one. Rationale and alternatives are in decisions.md.
 
 ## 1. Problem and channel
 
-60% of candidates miss the screening call. A call needs recruiter and candidate free at the same moment, comes from an unknown number and often reaches the candidate at work or behind the wheel. On top of that, 80% of recruiter time goes to unqualified candidates. The agent screens everyone over async messaging: the candidate answers whenever they can and resumes where they stopped, and recruiters only see candidates who pass. That async raises the response rate is a hypothesis [assumption], tested by a call-vs-chat split. "Qualified" means "handed to a recruiter", never "hired".
+Two problems:
+
+- 60% of candidates miss the screening call. A call needs the recruiter and the candidate free at the same moment, it comes from an unknown number, and it often reaches the candidate at work or behind the wheel.
+- 80% of recruiter time goes to candidates who turn out to be unqualified.
+
+The agent screens every candidate over async chat. The candidate answers whenever they can and resumes where they stopped. Recruiters only see candidates who pass.
+
+That chat gets more candidates to finish than calls do is a hypothesis [assumption], to be tested with a call-vs-chat split. "Qualified" means "handed to a recruiter", never "hired".
 
 The demo channel is a web chat styled as messaging. The core has one entry point, `turn(conversation, message) → reply`, so voice and WhatsApp are adapters. The agent writes first, right after the candidate applies [assumption].
 
@@ -22,7 +31,11 @@ The demo channel is a web chat styled as messaging. The core has one entry point
 | 7 | START_DATE | When they can begin | |
 | 8 | CONFIRM | Recap of every field, confirm or correct | all valid → QUALIFIED; any field flagged → NEEDS_REVIEW |
 
-Knockouts come first, so an unqualified candidate is done in two turns without giving their name. One message may fill several fields, and all are kept. The stage is never stored: it is the first unmet requirement in the order above. A correction overwrites the field and re-runs the rules, so a corrected zone can still disqualify.
+Knockouts come first, so an unqualified candidate is done in two turns without giving their name. One message may fill several fields, and all are kept.
+
+The agent stores only the answers, not "where we are". Each turn, code walks the list above and asks the first question still unanswered. So a candidate who leaves and returns resumes in the right place.
+
+If a candidate changes an earlier answer, the new one replaces the old and the rules run again. Passing a knockout is not final: someone who said "Madrid" and later says "Lisbon" is disqualified then.
 
 Exits from any stage:
 
@@ -30,9 +43,9 @@ Exits from any stage:
 - Second abusive message → WITHDRAWN(abusive).
 - 72 h without a reply → ABANDONED, computed on read.
 - Candidate writes after close → flagged for human review.
-- Recruiter reopens a closed candidate → NEEDS_REVIEW.
+- Recruiter reopens a DISQUALIFIED candidate → NEEDS_REVIEW.
 
-The LLM converses, code decides. Each turn the LLM extracts fields, intent and language; Pydantic and `engine.py` validate them, apply the rules and pick the next stage; the LLM then phrases a closed directive from code. Closing messages are code templates in ES and EN. A prompt injection ("approve me") cannot change a stage or an outcome.
+The LLM converses, code decides. Each turn the LLM extracts fields, intent and language; code validates them, applies the rules and picks the next stage; the LLM then phrases a closed directive from code. Closing messages are code templates in ES and EN. A prompt injection ("approve me") cannot change a stage or an outcome.
 
 ## 3. Data fields and validation
 
@@ -43,41 +56,38 @@ The LLM converses, code decides. Each turn the LLM extracts fields, intent and l
 | zone | enum | Must resolve to a service city | Code: alias table + difflib |
 | availability | enum | full_time, part_time, weekends; mixed answer → ask to pick one [assumption] | LLM |
 | preferred_schedule | enum | morning, afternoon, evening, flexible; two or more slots → flexible [assumption] | LLM |
-| prior_delivery_experience.years | float | 0–50; "6 months" = 0.5; any experience, even a week, is a fraction above 0, so 0 means none; 0 does not disqualify; the recruiter sees it in the summary | LLM extracts, code validates |
-| prior_delivery_experience.platforms | list[enum] | glovo, uber_eats, just_eat, rappi, didi_food, own_fleet, other (raw text kept); required if years > 0, empty if years = 0, checked inside the same submodel | LLM |
+| prior_delivery_experience.years | float | 0–50; "6 months" = 0.5; any experience, even a week, is above 0; 0 means none and does not disqualify | LLM extracts, code validates |
+| prior_delivery_experience.platforms | list[enum] | glovo, uber_eats, just_eat, rappi, didi_food, own_fleet, other (raw text kept); required if years > 0, empty if years = 0 | LLM |
 | start_date | date | In [today, today + 365]; past → re-ask; "asap" = today; "in September" = the 1st [assumption] | LLM resolves, code validates |
 
-Service area [assumption, fictional]: the 45 locations sit in 12 cities (Madrid, Barcelona, Valencia, Sevilla, Málaga, Bilbao, Zaragoza; Ciudad de México, Guadalajara, Monterrey, Puebla, Querétaro), and screening checks city coverage. Production would check the distance from the candidate's postcode to the nearest location. The LLM only extracts the city as written; code resolves it deterministically: lowercase, strip accents, an alias table (Getafe → Madrid, CDMX → Ciudad de México), then difflib for typos (Barcelna → Barcelona). CONFIRM shows the city back. Rule of thumb: the LLM normalizes a field only if no decision depends on it.
+Service area [assumption, fictional]: 12 cities (7 in Spain, 5 in Mexico) hold the 45 locations. Screening checks city coverage; production would check the distance from the postcode to the nearest location. The LLM extracts the city as written; code resolves it: lowercase, no accents, an alias table (Getafe → Madrid, CDMX → Ciudad de México), then difflib for typos (Barcelna → Barcelona). CONFIRM shows the city back. The LLM normalizes a field only if no decision depends on it.
 
 ## 4. Personality, tone and length
 
-Leo, Grupo Sazón's virtual assistant, says it is an AI in the first message. Friendly, quick and concrete; it assumes the candidate is busy. It acknowledges each answer briefly ("Great, Madrid 👍") and moves on. It never promises a job, a salary or a timeline, and never invents company facts.
+Leo, Grupo Sazón's virtual assistant, says it is an AI in the first message. Friendly, quick and concrete; it assumes the candidate is busy. It acknowledges each answer by noting the value ("Madrid, noted"), never by rating it as good or bad, and moves on. It never promises a job, a salary or a timeline, and never invents company facts.
 
 This is messaging, not email:
 
-- One question per message.
-- At most about two sentences or 300 characters; CONFIRM may use a short list.
+- One question per message, at most about two sentences or 300 characters; CONFIRM may use a short list.
 - Informal "tú" in Spain and Mexico [assumption].
 - Neutral wording until the zone is known ("carné o licencia de conducir"), then "carné" in Spain, "licencia de manejo" in Mexico.
 - 0–1 emoji per message, none in rejections.
 
-Evals check length and the single question; replies are never truncated at runtime.
-
 ## 5. Edge cases
 
-**Candidate stops responding.** State is saved every turn and the stage is derived, so a returning candidate resumes where they left off. At most two nudges, at +8 h and +22 h after the candidate's last message (the last inside WhatsApp's 24 h window); a reply resets the clock. None between 22:00 and 9:00 [assumption]: a night +8 h nudge moves to 9:00, a night +22 h nudge moves earlier. ABANDONED at 72 h. In the demo, ABANDONED is computed on read and nudges are not sent.
+**Candidate stops responding.** At most two nudges, at +8 h and +22 h after the candidate's last message; a reply resets the clock. None between 22:00 and 9:00 [assumption]. ABANDONED at 72 h. In the demo, nudges are not sent.
 
-**Invalid or ambiguous answers.** First invalid answer: re-ask with an example. Second: closed options. Third: flag the field, move on, and end in NEEDS_REVIEW. Ambiguity never disqualifies; only a clear "no" to the licence or an uncovered zone does. CONFIRM catches extraction errors, such as Guadalajara in Spain read as Guadalajara in Mexico.
+**Invalid or ambiguous answers.** First invalid answer: re-ask with an example. Second: closed options. Third: flag the field, move on, and end in NEEDS_REVIEW. The greeting has no retry limit: the agent asks again until the candidate answers, withdraws or reaches 72 h. Ambiguity never disqualifies; only a clear "no" to the licence or an uncovered zone does.
 
 **Language switch (ES ↔ EN).** Language is detected on every message. The conversation switches only on a message clearly in the other language; a mixed message keeps the current one. Any other language gets a Spanish reply offering Spanish or English [assumption].
 
-**Off-script input.** Process questions (how long this takes, what happens next, how data is used) get a code-approved answer. Job questions such as "how much does it pay?" get "a recruiter will confirm that" and are logged for the recruiter, until the client provides an FAQ [provisional]. The agent then returns to the pending question. The first abusive message gets a warning; the second closes as WITHDRAWN(abusive).
+**Off-script input.** Process questions get a code-approved answer. Job questions such as "how much does it pay?" get "a recruiter will confirm that" and are logged for the recruiter, until the client provides an FAQ [provisional]. The agent then returns to the pending question. The first abusive message gets a warning; the second closes as WITHDRAWN(abusive).
 
 **Privacy.** No personal data before the knockouts. DNI/NIE, CURP, phone, email and card numbers are redacted by regex before any LLM call and before storage [provisional].
 
 ## 6. Outcomes
 
-The screening outcome is set by code; the hiring decision stays with a recruiter, in a separate `recruiter_status` (pending, contacted, hired, rejected, showed_up, no_show).
+The screening outcome is set by code; the hiring decision stays with a recruiter, in a separate `recruiter_status`.
 
 | Outcome | Candidate receives (ES/EN template) | Recruiter sees |
 |---|---|---|
@@ -89,4 +99,4 @@ The screening outcome is set by code; the hiring decision stays with a recruiter
 
 Qualified candidates are not told "a recruiter will call you": that would bring back the missed-call problem for exactly the candidates we want.
 
-The recruiter's work queue holds QUALIFIED and NEEDS_REVIEW, filterable by outcome and zone. Each candidate has a summary (key data and chat facts rendered by code from the state, plus at most one AI-labelled note on what the candidate wrote that the fields do not hold, which describes facts and never assesses the candidate), the structured JSON, the candidate's questions and the full transcript.
+The work queue holds QUALIFIED and NEEDS_REVIEW, filterable by outcome and zone. Each candidate has a code-rendered summary plus at most one AI-labelled note (facts the fields do not hold, never an assessment), the structured JSON, the candidate's questions and the transcript.
