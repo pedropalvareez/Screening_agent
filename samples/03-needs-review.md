@@ -2,7 +2,7 @@
 
 Three availability answers name no single option. After the third, code flags the field and moves on, and the screening ends in NEEDS_REVIEW for a recruiter. Zapopan resolves to Guadalajara, so Leo uses Mexico's wording.
 
-Real run on 2026-10-25 with Claude Haiku 5.5 via OpenRouter, through `sazon.turn.start` and `turn`. The candidate's messages were scripted and are fictional; everything below is what the app stored.
+Real run on 2026-10-25 with Claude Haiku 5.5 via OpenRouter, through `sazon.turn.start` and `turn`. The candidate's messages were scripted and are fictional; the transcript, fields and summary below are what the app stored.
 
 ## Transcript
 

@@ -2,7 +2,7 @@
 
 The candidate's first reply asks to go on in English, and Leo switches. The phone number in the name message is replaced with [phone] before the LLM call and before storage, so neither OpenRouter nor the database sees it.
 
-Real run on 2026-10-25 with Claude Haiku 5.5 via OpenRouter, through `sazon.turn.start` and `turn`. The candidate's messages were scripted and are fictional; everything below is what the app stored.
+Real run on 2026-10-25 with Claude Haiku 5.5 via OpenRouter, through `sazon.turn.start` and `turn`. The candidate's messages were scripted and are fictional; the transcript, fields and summary below are what the app stored.
 
 ## Transcript
 

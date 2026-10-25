@@ -2,7 +2,7 @@
 
 One message gives both availability and schedule, so Leo skips the schedule question. Alcorcón resolves to the Madrid service city.
 
-Real run on 2026-10-25 with Claude Haiku 5.5 via OpenRouter, through `sazon.turn.start` and `turn`. The candidate's messages were scripted and are fictional; everything below is what the app stored.
+Real run on 2026-10-25 with Claude Haiku 5.5 via OpenRouter, through `sazon.turn.start` and `turn`. The candidate's messages were scripted and are fictional; the transcript, fields and summary below are what the app stored.
 
 ## Transcript
 

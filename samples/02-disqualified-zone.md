@@ -1,8 +1,8 @@
 # Disqualified: city not covered, then the talent-pool opt-in
 
-Mérida is outside the service area. Leo asks once more, with the service cities as tap options, then closes as zone_not_covered and asks whether to tell the candidate if Grupo Sazón opens there. The yes stores a consent that expires in 12 months.
+Mérida is outside the service area. Leo asks once more, and the chat shows the service cities as tap options (they come from the state, so the transcript does not hold them). Leo then closes as zone_not_covered and asks whether to tell the candidate if Grupo Sazón opens there. The yes stores a consent that expires in 12 months.
 
-Real run on 2026-10-25 with Claude Haiku 5.5 via OpenRouter, through `sazon.turn.start` and `turn`. The candidate's messages were scripted and are fictional; everything below is what the app stored.
+Real run on 2026-10-25 with Claude Haiku 5.5 via OpenRouter, through `sazon.turn.start` and `turn`. The candidate's messages were scripted and are fictional; the transcript, fields and summary below are what the app stored.
 
 ## Transcript
 
