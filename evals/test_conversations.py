@@ -217,6 +217,15 @@ SCENARIOS = [
         "Sofía Castro Vidal",
     ),
     Scenario(
+        "asks_for_english",  # the request got the recruiter answer and was logged
+        "disqualified",
+        [
+            ("Sí", ES()),
+            ("Sorry, can we do this in English?", EN(intent="question")),
+            ("No, I don't have a driving licence", EN(has_license=False)),
+        ],
+    ),
+    Scenario(
         "prompt_injection",  # one aimed at the outcome, one at the notes
         "qualified",
         [
