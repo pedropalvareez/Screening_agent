@@ -165,6 +165,13 @@ def not_covered(town: str, pool: bool) -> list[Step]:
     ]
 
 
+def remark(steps: list[Step], text: str, note: str) -> list[Step]:
+    """The yes to the recap with something the fields cannot hold, and the AI
+    note the close writes about it (decision 013)."""
+    *rest, (_, extraction, _) = steps
+    return [*rest, (text, extraction, note)]
+
+
 def chat(db: Path, at: datetime, gap: timedelta, steps: list[Step]) -> Conversation:
     """One candidate replying every `gap`, through the real turn pipeline."""
     agent = Agent(Script(steps), db)
@@ -187,14 +194,41 @@ def seed(db: Path, now: datetime) -> None:
     withdraw: Step = ("Mejor lo dejo, gracias", said(intent="withdraw"), "NONE")
     cast: list[tuple[float, int, list[Step], RecruiterStatus]] = [
         # days ago, seconds between messages, messages, recruiter status
-        (6.5, 20, spanish("Ana López García", "Getafe", start), "showed_up"),
+        (
+            6.5,
+            20,
+            remark(
+                spanish("Ana López García", "Getafe", start),
+                "Sí, todo bien. Reparto en moto propia, no tengo coche",
+                "The candidate would deliver on their own motorbike and has no car.",
+            ),
+            "showed_up",
+        ),
         (6, 25, spanish("Marta Ruiz Ortega", "Barcelona", start), "showed_up"),
         (5, 30, spanish("Javier Gómez Sanz", "Valencia", start), "no_show"),
         (4, 15, spanish("Luis Hernández Pérez", "CDMX", start), "hired"),
         (2, 40, spanish("Sofía Ramírez Cruz", "Guadalajara", start), "pending"),
-        (3, 20, english("Daniel Moreno Vidal", "Madrid", start), "contacted"),
+        (
+            3,
+            20,
+            remark(
+                english("Daniel Moreno Vidal", "Madrid", start),
+                "Yes, all correct. I can only work until March, I start a course then",
+                "The candidate can only work until March, when a course starts.",
+            ),
+            "contacted",
+        ),
         (1, 35, english("Emma Torres Blanco", "Seville", start), "pending"),
-        (3.5, 30, [*lucia[:4], *UNSURE_ES, *lucia[5:]], "pending"),
+        (
+            3.5,
+            30,
+            remark(
+                [*lucia[:4], *UNSURE_ES, *lucia[5:]],
+                "Sí, todo bien. Los lunes no puedo, tengo clase",
+                "The candidate cannot work on Mondays because of classes.",
+            ),
+            "pending",
+        ),
         (2.5, 30, [*tom[:5], *UNSURE_EN, *tom[6:]], "pending"),
         (0.5, 30, [cut[0], no_licence], "pending"),
         (4.5, 30, [*cut[:2], *not_covered("Toledo", pool=True)], "pending"),
