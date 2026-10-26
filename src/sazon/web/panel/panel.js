@@ -288,16 +288,14 @@ function renderMetrics(m) {
   $("tiles").replaceChildren(
     tile("Completion rate", percent(m.completed), `${share(m.completed)} who replied`,
       "Ended in a decision: qualified, needs review or disqualified."),
-    tile("Median duration", median, `${m.needs_review.total} who finished`,
-      "From the candidate's first message to the close, for the qualified and needs review."),
+    tile("Typical screening length", median, `median of ${m.needs_review.total} finished screenings`,
+      "From the candidate's first message to the decision, for the qualified and needs review. Half took less, half more."),
     tile("Needs review", percent(m.needs_review), `${share(m.needs_review)} who finished`,
-      "Of the qualified and needs review. Target below 10%, an assumption (017)."),
-    tile("Reopened", percent(m.reopened), `${share(m.reopened)} disqualified`,
-      "Disqualified candidates a recruiter reopened: a check on wrong rejections."),
-    tile("Talent pool", percent(m.pool), `${share(m.pool)} outside the area`,
-      "Rejected for their zone, and said yes to hear if we open in their city."),
-    tile("Show-up rate", percent(m.showed_up), `${share(m.showed_up)} with a result`,
-      "Showed up, of showed up and no-show. Statuses have no date: a running total."),
+      "Of the qualified and needs review."),
+    tile("Kept for later", String(m.pool.count), `of ${m.pool.total} rejected because their city is not covered`,
+      "They agreed to be contacted if we open in their city."),
+    tile("First-shift show-up", share(m.showed_up), "hires whose first shift a recruiter has marked",
+      "Showed up, of those marked showed up or no-show. Statuses have no date: an all-time total."),
   );
   fillTable($("dropped-off"), Object.entries(m.dropped_off).map(([stage, count]) => [sentence(human(stage)), String(count)]));
   fillTable($("by-field"), Object.entries(m.flagged).map(([field, rate]) => [sentence(human(field)), share(rate), percent(rate)]));
