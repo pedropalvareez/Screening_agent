@@ -80,7 +80,7 @@
       </div>
       <div class="card">
         <h3 id="by-language-title">Needs review by language</h3>
-        <p class="caption">Each conversation counts in its last language, to check whether one language gets flagged more.</p>
+        <p class="caption">A fairness check: if the agent understood one language worse, more of its candidates would land in review. A large gap, such as 5% against 30%, points to a prompt or extraction problem in that language. Of the qualified and needs review; each conversation counts in the language it ended in.</p>
         <table aria-labelledby="by-language-title">
           <thead><tr><th scope="col">Language</th><th scope="col">Candidates</th><th scope="col">Share</th></tr></thead>
           <tbody id="by-language"></tbody>

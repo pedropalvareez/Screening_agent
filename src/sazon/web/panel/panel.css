@@ -480,7 +480,7 @@ mark {
 
 .detail { margin: 2px 0 0; color: var(--muted); }
 
-/* Six tiles: 3 × 2, 2 × 3 or one column, never a row with an orphan. */
+/* Five tiles: 3 + 2, 2 + 2 + 1 or one column, never a row with a gap. */
 #tiles {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -490,8 +490,15 @@ mark {
   list-style: none;
 }
 
-@media (min-width: 560px) { #tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 960px) { #tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 560px) {
+  #tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #tiles > :last-child { grid-column: 1 / -1; }
+}
+@media (min-width: 960px) {
+  #tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  #tiles > * { grid-column: span 2; }
+  #tiles > :nth-child(n + 4) { grid-column: span 3; }
+}
 
 .tables {
   display: grid;
