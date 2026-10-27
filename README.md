@@ -2,6 +2,8 @@
 
 Leo is an AI assistant that screens delivery-driver applicants for Grupo Sazón over chat or voice, in Spanish or English. The knockout questions (driving licence, city) come first, then the rest of the seven screening fields, and code sets the outcome. Recruiters work from a web panel whose queue holds only the candidates who passed or need a human look.
 
+[![Demo, 6 min: chat, edge cases, voice and the recruiter panel](docs/demo-thumbnail.jpg)](https://youtu.be/aVW9mbQ1VVE)
+
 [docs/process-design.md](docs/process-design.md) is the conversation contract: stages, fields, tone and edge cases. [docs/decisions.md](docs/decisions.md) records each design choice with its alternatives and trade-offs, including what was left unbuilt on purpose. This README summarizes both and links to them.
 
 ## Setup
